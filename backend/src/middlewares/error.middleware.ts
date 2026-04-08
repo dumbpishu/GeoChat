@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError";
 import { env } from "../config/env";
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error(err);
+    console.error(err?.stack || err);
 
     let statusCode = 500;
     let message = "Internal Server Error";
@@ -19,7 +19,6 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 
     res.status(statusCode).json({
         success: false,
-        message,
-        ...(env.NODE_ENV === "development" && { stack: err.stack }),
+        message
     });
 }

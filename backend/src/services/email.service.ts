@@ -8,7 +8,7 @@ export const sendEmailService = async (email: string, otp: string) => {
         await resend.emails.send({
             from: env.EMAIL_FROM,
             to: email,
-            subject: "GeoChat Verification Code (Valid for 2 minutes)",
+            subject: "GeoChat Verification Code",
             html: otpTemplate(otp)
         });
     } catch (error) {

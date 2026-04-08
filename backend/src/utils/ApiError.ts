@@ -7,5 +7,7 @@ export class ApiError extends Error {
         this.success = false;
         this.statusCode = statusCode;
         Object.setPrototypeOf(this, ApiError.prototype);
+
+        Error.captureStackTrace(this, this.constructor);
     }
 }

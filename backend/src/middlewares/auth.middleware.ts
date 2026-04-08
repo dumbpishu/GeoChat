@@ -11,7 +11,7 @@ interface AuthUser {
     email: string;
     username: string;
     avatar?: string;
-    isDeleted: boolean;
+    isDeleted?: boolean;
 }
 
 declare global {
@@ -38,7 +38,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
         const user = await User.findById(decoded.id);
 
-        if (!user) {
+        if (!user || user.isDeleted) {
             throw new ApiError(401, "Unauthorized. User not found.");
         }
 
@@ -47,8 +47,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
             name: user.name || "",
             email: user.email,
             username: user.username,
-            avatar: user.avatar || undefined,
-            isDeleted: user.isDeleted,
+            avatar: user.avatar?.url || undefined,
         };
 
         next();

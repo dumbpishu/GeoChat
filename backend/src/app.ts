@@ -21,9 +21,10 @@ app.get("/api/health", (_, res) => {
 })
 
 import authRoutes from "./routes/auth.route";
+import userRoutes from "./routes/user.route";
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/users", userRoutes);
 
 app.use(errorHandler);
 

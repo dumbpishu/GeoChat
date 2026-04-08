@@ -27,7 +27,18 @@ export const userSchema = new mongoose.Schema(
             required: true
         },
         avatar: {
-            type: String
+            url: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: ""
+            },
+            publicId: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: ""
+            }
         },
         isDeleted: {
             type: Boolean,

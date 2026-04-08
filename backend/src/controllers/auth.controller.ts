@@ -30,17 +30,11 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
 export const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user;
 
-    if (!user || user.isDeleted) {
+    if (!user) {
         throw new ApiError(401, "Unauthorized. Please log in to access this resource.");
     }
 
-    res.status(200).json(new ApiResponse(200, "Current user retrieved successfully.", {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar
-    }));
+    res.status(200).json(new ApiResponse(200, "Current user retrieved successfully.", user));
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {

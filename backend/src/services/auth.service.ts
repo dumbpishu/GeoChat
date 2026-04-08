@@ -60,7 +60,7 @@ export const verifyOtpService = async (email: string, otp: string) => {
             name: user.name,
             username: user.username,
             email: user.email,
-            avatar: user.avatar
+            avatar: user.avatar?.url || undefined,
         },
         token
     }

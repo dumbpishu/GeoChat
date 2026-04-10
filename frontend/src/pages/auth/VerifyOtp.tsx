@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { verifyOtp } from "@/api/auth.api";
+import { useAuth } from "@/hooks/useAuth";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,7 @@ export const VerifyOtp = () => {
     const { email } = location.state || localStorage.getItem("emailForVerify") || {};
     const navigate = useNavigate();
     const [otp, setOtp] = useState("");
+    const { verifyOtp } = useAuth();
 
     const handleVerifyOtp = async () => {
         try {

@@ -1,6 +1,6 @@
 import { api } from "@/lib/axios";
 
-export const sendOtp = async (email: string) => {
+export const sendOtpApi = async (email: string) => {
     try {
         const response = await api.post("/api/auth/send-otp", { email });
         return response.data;
@@ -9,7 +9,7 @@ export const sendOtp = async (email: string) => {
     }
 }
 
-export const verifyOtp = async (email: string, otp: string) => {
+export const verifyOtpApi = async (email: string, otp: string) => {
     try {
         const response = await api.post("/api/auth/verify-otp", { email, otp });
         return response.data;
@@ -18,7 +18,7 @@ export const verifyOtp = async (email: string, otp: string) => {
     }
 }
 
-export const getCurrentUser = async () => {
+export const getCurrentUserApi = async () => {
     try {
         const response = await api.get("/api/auth/me");
         return response.data;
@@ -27,7 +27,7 @@ export const getCurrentUser = async () => {
     }
 }
 
-export const logout = async () => {
+export const logoutApi = async () => {
     try {
         await api.post("/api/auth/logout");
     } catch (error: any) {

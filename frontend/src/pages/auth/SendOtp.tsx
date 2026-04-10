@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { sendOtp } from "@/api/auth.api";
+import { useAuth } from "@/hooks/useAuth";
 import toast from "react-hot-toast";
 
 export const SendOtp = () => {
     const [email, setEmail] = useState("");
+    const { sendOtp } = useAuth();
     const navigate = useNavigate();
 
     const handleSendOtp = async () => {
         try {
             await sendOtp(email);
             toast.success("OTP sent successfully! Please check your email.");
-            localStorage.setItem("emailForVerify", email);
             navigate("/auth/verify-otp", { state: { email } });
         } catch (error: any) {
             toast.error(error.message || "Failed to send OTP. Please try again.");

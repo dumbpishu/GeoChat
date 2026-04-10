@@ -11,9 +11,10 @@ export const SendOtp = () => {
         try {
             await sendOtp(email);
             toast.success("OTP sent successfully! Please check your email.");
+            localStorage.setItem("emailForVerify", email);
             navigate("/auth/verify-otp", { state: { email } });
-        } catch (error) {
-            toast.error("Failed to send OTP. Please try again.");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to send OTP. Please try again.");
         }
     }
 

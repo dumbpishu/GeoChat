@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 export const VerifyOtp = () => {
     const location = useLocation();
-    const { email } = location.state || {};
+    const { email } = location.state || localStorage.getItem("emailForVerify") || {};
     const navigate = useNavigate();
     const [otp, setOtp] = useState("");
 
@@ -15,8 +15,8 @@ export const VerifyOtp = () => {
             await verifyOtp(email, otp);
             toast.success("OTP verified successfully! You are now logged in.");
             navigate("/chat");
-        } catch (error) {
-            toast.error("Failed to verify OTP. Please try again.");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to verify OTP. Please try again.");
         }
     }
 

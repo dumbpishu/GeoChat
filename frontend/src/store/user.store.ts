@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getCurrentUserApi, sendOtpApi, verifyOtpApi, logoutApi } from "@/api/auth.api";
+import { updateUserApi, updateAvatarApi, deleteUserApi } from "@/api/user.api";
 
 type User = {
     id: string;
@@ -11,72 +11,47 @@ type User = {
 
 type UserState = {
     user: User | null;
-    loading: boolean;
 
-    // actions
-    initAuth: () => Promise<void>;
-    sendOtp: (email: string) => Promise<void>;
-    verifyOtp: (email: string, otp: string) => Promise<void>;
-    logout: () => Promise<void>;
+    setUser: (user: User | null) => void;
+    clearUser: () => void;
+
+    updateUser: (userData: { name?: string; username?: string }) => Promise<void>;
+    updateAvatar: (avatar: File) => Promise<void>;
+    deleteUser: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set) => ({
     user: JSON.parse(localStorage.getItem("currentUser") || "null"),
-    loading: true,
 
-    initAuth: async () => {
-        try {
-            const userData = await getCurrentUserApi();
-            set({ user: userData });
-            localStorage.setItem("currentUser", JSON.stringify(userData));
-        } catch (error) {
-            set({ user: null });
+    setUser: (user) => {
+        set({ user });
+        if (user) {
+            localStorage.setItem("currentUser", JSON.stringify(user));
+        } else {
             localStorage.removeItem("currentUser");
-        } finally {
-            set({ loading: false });
         }
     },
 
-    sendOtp: async (email: string) => {
-        try {
-            set({ loading: true });
-            if (!email) {
-                throw new Error("Email is required to send OTP");
-            }
-            await sendOtpApi(email);
-            sessionStorage.setItem("emailForVerify", email);
-        } finally {
-            set({ loading: false });
-        }
+    clearUser: () => {
+        set({ user: null });
+        localStorage.removeItem("currentUser");
     },
 
-    verifyOtp: async (email: string, otp: string) => {
-        try {
-            set({ loading: true });
-
-            if (!email || !otp) {
-                throw new Error("Both email and OTP are required for verification");
-            }
-
-            await verifyOtpApi(email, otp);
-            const userData = await getCurrentUserApi();
-            set({ user: userData });
-
-            localStorage.setItem("currentUser", JSON.stringify(userData));
-            sessionStorage.removeItem("emailForVerify");
-        } finally {
-            set({ loading: false });
-        }
+    updateUser: async (userData) => {
+        const updatedUser = await updateUserApi(userData);
+        set({ user: updatedUser });
+        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
     },
 
-    logout: async () => {
-        try {
-            set({ loading: true });
-            await logoutApi();
-            set({ user: null });
-            localStorage.removeItem("currentUser");
-        } finally {
-            set({ loading: false });
-        }
+    updateAvatar: async (avatar) => {
+        const updatedUser = await updateAvatarApi(avatar);
+        set({ user: updatedUser });
+        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+    },
+
+    deleteUser: async () => {
+        await deleteUserApi();
+        set({ user: null });
+        localStorage.removeItem("currentUser");
     }
 }))

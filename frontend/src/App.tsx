@@ -1,11 +1,11 @@
 import { RouterProvider } from "react-router-dom"
 import { appRouter } from "./routes/appRoutes"
 import { useEffect } from "react"
-import { useUserStore } from "./store/user.store"
+import { useAuthStore } from "./store/auth.store";
 
 function App() {
-  const initAuth = useUserStore((state) => state.initAuth);
-  
+  const initAuth = useAuthStore((state) => state.initAuth);
+
   useEffect(() => {
     initAuth();
   }, [initAuth]);

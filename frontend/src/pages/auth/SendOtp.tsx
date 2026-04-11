@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserStore } from "@/store/user.store";
 import toast from "react-hot-toast";
 
 export const SendOtp = () => {
     const [email, setEmail] = useState("");
-    const { sendOtp } = useAuth();
     const navigate = useNavigate();
+
+    const sendOtp = useUserStore((state) => state.sendOtp);
 
     const handleSendOtp = async () => {
         try {

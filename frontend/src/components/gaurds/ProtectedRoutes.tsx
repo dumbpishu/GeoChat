@@ -1,9 +1,9 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useUserStore } from "@/store/user.store";
 import { Navigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 
 export const ProtectedRoutes = () => {
-    const { user, loading } = useAuth();
+    const { user, loading } = useUserStore((state) => state);
 
     if (loading) {
         return (

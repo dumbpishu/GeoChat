@@ -3,7 +3,7 @@ import { api } from "@/lib/axios";
 export const sendOtpApi = async (email: string) => {
     try {
         const response = await api.post("/api/auth/send-otp", { email });
-        return response.data;
+        return response.data?.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || "Failed to send OTP");
     }
@@ -12,7 +12,7 @@ export const sendOtpApi = async (email: string) => {
 export const verifyOtpApi = async (email: string, otp: string) => {
     try {
         const response = await api.post("/api/auth/verify-otp", { email, otp });
-        return response.data;
+        return response.data?.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || "Failed to verify OTP");
     }
@@ -21,7 +21,7 @@ export const verifyOtpApi = async (email: string, otp: string) => {
 export const getCurrentUserApi = async () => {
     try {
         const response = await api.get("/api/auth/me");
-        return response.data;
+        return response.data?.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || "Failed to fetch current user");
     }

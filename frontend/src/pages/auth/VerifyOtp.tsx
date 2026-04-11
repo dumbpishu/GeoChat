@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserStore } from "@/store/user.store";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 export const VerifyOtp = () => {
     const location = useLocation();
-    const { email } = location.state || localStorage.getItem("emailForVerify") || {};
+    const { email } = location.state || sessionStorage.getItem("emailForVerify") || {};
     const navigate = useNavigate();
     const [otp, setOtp] = useState("");
-    const { verifyOtp } = useAuth();
+    const verifyOtp = useUserStore((state) => state.verifyOtp);
+
+    if (!email) {
+        toast.error("No email found for OTP verification. Please request a new OTP.");
+        navigate("/auth/send-otp");
+        return null;
+    }
 
     const handleVerifyOtp = async () => {
         try {

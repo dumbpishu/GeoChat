@@ -3,6 +3,8 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { pubClient, subClient, connectRedis } from "../config/redis";
 import { socketAuthMiddleware } from "../middlewares/socket.middleware";
 import { enforceSingleConnection, cleanupUserConnection } from "./session.manager";
+import { registerLocationEvents } from "./location.socket";
+import { registerMessageEvents } from "./message.socket";
 
 export const initializeSocket = async (io: Server) => {
     await connectRedis();
@@ -16,6 +18,8 @@ export const initializeSocket = async (io: Server) => {
         console.log(`Client connected: ${socket.id} (User ID: ${userId})`);
 
         await enforceSingleConnection(io, socket, userId);
+        registerLocationEvents(io, socket);
+        registerMessageEvents(io, socket);
 
         socket.on("disconnect", async () => {
             await cleanupUserConnection(socket, userId);

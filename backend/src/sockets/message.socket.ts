@@ -2,6 +2,7 @@ import { Socket, Server } from "socket.io";
 import { pubClient } from "../config/redis";
 import { Message } from "../models/message.model";
 import mongoose from "mongoose";
+import { sendEmailService } from "../services/email.service";
 
 type MediaType = {
   url: string;
@@ -107,8 +108,9 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         console.error("Redis cache error:", err);
       }
 
-      //  emit to room
-      io.to(roomId).emit("new_message", message);
+        // emit to room
+      socket.emit("new_message", { ...message, isSender: true }); // send to sender
+      socket.to(roomId).emit("new_message", { ...message, isSender: false }); // send to others
 
       // notify mentioned users
       for (const mentionedUserId of validMentions) {
@@ -124,6 +126,9 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
               senderId: userId,
               text: message.text,
             });
+          } else {
+            // user offline - could store notifications in DB for later retrieval
+
           }
         } catch (err) {
           console.error("Mention notify error:", err);
@@ -133,6 +138,24 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
     } catch (error) {
       console.error("send_message error:", error);
       socket.emit("error", "Failed to send message");
+    }
+  });
+
+  socket.on("message_seen", ({ messageId }) => {
+    try {
+        const roomId = socket.data.currentRoom;
+        const userId = socket.data.userId;
+
+        if (!roomId || !userId || !messageId) return;
+
+        // notify sender (and others if needed)
+        socket.to(roomId).emit("message_seen", {
+        messageId,
+        seenBy: userId,
+        });
+
+    } catch (err) {
+        console.error("message_seen error:", err);
     }
   });
 };

@@ -4,7 +4,7 @@ import app from "./app";
 
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { initializeSocket } from "./realtime";
+import { initializeSocket } from "./sockets";
 
 const startServer = async () => {
     try {

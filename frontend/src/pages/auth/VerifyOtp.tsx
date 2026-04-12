@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
+import { resendOtpApi } from "@/api/auth.api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Mail, ArrowLeft, ArrowRight } from "lucide-react";
@@ -11,6 +12,7 @@ export const VerifyOtp = () => {
     const navigate = useNavigate();
     const [otp, setOtp] = useState(["", "", "", "", "", ""]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isResending, setIsResending] = useState(false);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const verifyOtp = useAuthStore((state) => state.verifyOtp);
@@ -81,8 +83,21 @@ export const VerifyOtp = () => {
         }
     };
 
-    const handleResend = () => {
-        navigate("/auth/send-otp");
+    const handleResend = async () => {
+        if (!email) {
+            navigate("/auth/send-otp");
+            return;
+        }
+        
+        setIsResending(true);
+        try {
+            await resendOtpApi(email);
+            toast.success("OTP resent successfully! Please check your email.");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to resend OTP. Please try again.");
+        } finally {
+            setIsResending(false);
+        }
     };
 
     return (
@@ -150,9 +165,10 @@ export const VerifyOtp = () => {
                         Didn't receive the code?{" "}
                         <button 
                             onClick={handleResend}
-                            className="text-sky-500 hover:text-sky-600 font-medium cursor-pointer"
+                            disabled={isResending}
+                            className="text-sky-500 hover:text-sky-600 font-medium cursor-pointer disabled:opacity-50"
                         >
-                            Resend
+                            {isResending ? "Resending..." : "Resend"}
                         </button>
                     </p>
                 </div>

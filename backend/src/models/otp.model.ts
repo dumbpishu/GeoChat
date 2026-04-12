@@ -19,7 +19,7 @@ export const otpSchema = new mongoose.Schema(
             type: Date,
             required: true
         }
-    }
+    }, { timestamps: true }
 );
 
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

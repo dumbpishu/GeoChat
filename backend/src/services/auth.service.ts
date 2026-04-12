@@ -69,8 +69,8 @@ export const verifyOtpService = async (email: string, otp: string) => {
 export const resendOtpService = async (email: string) => {
     const existingOtp = await Otp.findOne({ email });
 
-    if (existingOtp && existingOtp.expiresAt.getTime() > Date.now() - 30 * 1000) {
-        throw new ApiError(400, "You can only request a new OTP after 30 seconds. Please try again later.");
+    if (existingOtp && Date.now() - new Date(existingOtp.updatedAt).getTime() < 30 * 1000) {
+        throw new ApiError(400, "You can only resend new OTP after 30 seconds.");
     }
 
     const otp = generateOtp();

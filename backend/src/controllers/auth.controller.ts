@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse } from "../utils/ApiResponse";
-import { sendOtpService, verifyOtpService } from "../services/auth.service";
+import { sendOtpService, verifyOtpService, resendOtpService } from "../services/auth.service";
 import { ApiError } from "../utils/ApiError";
 
 export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -10,6 +10,14 @@ export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
     await sendOtpService(email);
 
     res.status(200).json(new ApiResponse(200, "OTP sent successfully. Please check your email."));
+});
+
+export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    await resendOtpService(email);
+
+    res.status(200).json(new ApiResponse(200, "OTP resent successfully. Please check your email."));
 });
 
 export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {

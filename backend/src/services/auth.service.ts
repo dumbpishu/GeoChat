@@ -65,3 +65,27 @@ export const verifyOtpService = async (email: string, otp: string) => {
         token
     }
 }
+
+export const resendOtpService = async (email: string) => {
+    const existingOtp = await Otp.findOne({ email });
+
+    if (existingOtp && existingOtp.expiresAt.getTime() > Date.now() - 30 * 1000) {
+        throw new ApiError(400, "You can only request a new OTP after 30 seconds. Please try again later.");
+    }
+
+    const otp = generateOtp();
+    const hashedOtp = hashOtp(otp);
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
+
+    await Otp.findOneAndUpdate(
+        { email },
+        { hashedOtp, expiresAt },
+        { upsert: true, new: true }
+    );
+
+    setImmediate(() => {
+        sendEmailService(email, otp).catch(error => {
+            console.error("Error sending OTP email:", error);
+        });
+    });
+}

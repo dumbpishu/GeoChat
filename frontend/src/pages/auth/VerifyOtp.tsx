@@ -1,46 +1,162 @@
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Mail, ArrowLeft, ArrowRight } from "lucide-react";
 
 export const VerifyOtp = () => {
     const location = useLocation();
-    const { email } = location.state || sessionStorage.getItem("otpEmail") || {};
+    const email = location.state?.email || sessionStorage.getItem("otpEmail");
     const navigate = useNavigate();
-    const [otp, setOtp] = useState("");
-    
-    
+    const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+    const [isLoading, setIsLoading] = useState(false);
+    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
     const verifyOtp = useAuthStore((state) => state.verifyOtp);
 
-    if (!email) {
-        toast.error("No email found for OTP verification. Please request a new OTP.");
-        navigate("/auth/send-otp");
-        return null;
-    }
+    useEffect(() => {
+        if (!email) {
+            toast.error("No email found. Please request a new OTP.");
+            navigate("/auth/send-otp");
+        }
+    }, [email, navigate]);
 
-    const handleVerifyOtp = async () => {
+    useEffect(() => {
+        inputRefs.current[0]?.focus();
+    }, []);
+
+    if (!email) return null;
+
+    const handleChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return;
+        
+        const newOtp = [...otp];
+        newOtp[index] = value;
+        setOtp(newOtp);
+
+        if (value && index < 5) {
+            inputRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+        if (e.key === "Backspace" && !otp[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent) => {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData("text").slice(0, 6);
+        if (!/^\d+$/.test(pasteData)) return;
+        
+        const newOtp = pasteData.split("").concat(Array(6).fill("")).slice(0, 6);
+        setOtp(newOtp);
+        
+        if (pasteData.length === 6) {
+            inputRefs.current[5]?.focus();
+        } else {
+            inputRefs.current[pasteData.length]?.focus();
+        }
+    };
+
+    const handleVerify = async () => {
+        const otpValue = otp.join("");
+        if (otpValue.length !== 6) {
+            toast.error("Please enter a valid 6-digit OTP");
+            return;
+        }
+        setIsLoading(true);
         try {
-            await verifyOtp(email, otp);
-            toast.success("OTP verified successfully! You are now logged in.");
+            await verifyOtp(email, otpValue);
+            toast.success("OTP verified successfully!");
             navigate("/chat");
         } catch (error: any) {
             toast.error(error.message || "Failed to verify OTP. Please try again.");
+            setOtp(["", "", "", "", "", ""]);
+            inputRefs.current[0]?.focus();
+        } finally {
+            setIsLoading(false);
         }
-    }
+    };
+
+    const handleResend = () => {
+        navigate("/auth/send-otp");
+    };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-            <h1 className="text-2xl font-bold mb-4">Verify Your OTP</h1>
-            <p className="text-lg text-gray-600 mb-6">Please enter the OTP sent to {email}.</p>
-            <input
-                type="text"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full max-w-sm p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-            <button onClick={handleVerifyOtp} className="w-full max-w-sm px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Verify OTP</button>
+        <div className="w-full">
+            <button 
+                onClick={() => navigate("/auth/send-otp")}
+                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-6 transition-colors cursor-pointer"
+            >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+            </button>
+
+            <div className="text-center mb-8">
+                <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-sky-500/25">
+                    <Mail className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Verify Your Email</h2>
+                <p className="text-slate-500">We've sent a 6-digit code to</p>
+                <p className="text-slate-700 font-medium mt-1">{email}</p>
+            </div>
+
+            <div className="space-y-6">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Enter OTP</label>
+                    <div className="flex justify-center gap-2" onPaste={handlePaste}>
+                        {otp.map((digit, index) => (
+                            <input
+                                key={index}
+                                ref={(el) => { inputRefs.current[index] = el; }}
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                value={digit}
+                                onChange={(e) => handleChange(index, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(index, e)}
+                                className="w-12 h-12 text-center text-lg font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-text"
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <Button 
+                    onClick={handleVerify}
+                    disabled={isLoading || otp.join("").length !== 6}
+                    className="w-full py-3 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 border-0 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                    {isLoading ? (
+                        <span className="flex items-center gap-2">
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Verifying...
+                        </span>
+                    ) : (
+                        <>
+                            Verify OTP
+                            <ArrowRight className="w-4 h-4" />
+                        </>
+                    )}
+                </Button>
+
+                <div className="text-center">
+                    <p className="text-sm text-slate-500">
+                        Didn't receive the code?{" "}
+                        <button 
+                            onClick={handleResend}
+                            className="text-sky-500 hover:text-sky-600 font-medium cursor-pointer"
+                        >
+                            Resend
+                        </button>
+                    </p>
+                </div>
+            </div>
         </div>
     );
-}
+};

@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
+import { useUserStore } from "@/store/user.store";
 import { MapPin, MessageCircle, Users, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/UserMenu";
 
 export const LandingPage = () => {
+    const user = useUserStore((state) => state.user);
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50">
             <nav className="flex items-center justify-between px-6 md:px-8 py-4 max-w-7xl mx-auto">
@@ -13,16 +17,22 @@ export const LandingPage = () => {
                     <span className="text-2xl font-bold text-slate-800">GeoChat</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link to="/auth/send-otp">
-                        <Button variant="ghost" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer">
-                            Sign In
-                        </Button>
-                    </Link>
-                    <Link to="/auth/send-otp">
-                        <Button className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 border-0 cursor-pointer">
-                            Get Started
-                        </Button>
-                    </Link>
+                    {user ? (
+                        <UserMenu />
+                    ) : (
+                        <>
+                            <Link to="/auth/send-otp">
+                                <Button variant="ghost" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer">
+                                    Sign In
+                                </Button>
+                            </Link>
+                            <Link to="/auth/send-otp">
+                                <Button className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 border-0 cursor-pointer">
+                                    Get Started
+                                </Button>
+                            </Link>
+                        </>
+                    )}
                 </div>
             </nav>
 
@@ -46,9 +56,9 @@ export const LandingPage = () => {
                             Discover and chat with people around you. GeoChat brings conversations to your neighborhood, making connections meaningful and local.
                         </p>
                         <div className="flex items-center justify-center gap-4">
-                            <Link to="/auth/send-otp">
+                            <Link to={user ? "/chat" : "/auth/send-otp"}>
                                 <Button size="lg" className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 border-0 px-6 md:px-8 text-base md:text-lg cursor-pointer">
-                                    Start Chatting
+                                    {user ? "Open Chat" : "Start Chatting"}
                                 </Button>
                             </Link>
                         </div>
@@ -94,9 +104,9 @@ export const LandingPage = () => {
                         <p className="text-slate-600 max-w-xl mx-auto mb-6">
                             We prioritize your security with advanced encryption. Your location data is handled responsibly and never shared without consent.
                         </p>
-                        <Link to="/auth/send-otp">
+                        <Link to={user ? "/chat" : "/auth/send-otp"}>
                             <Button size="lg" className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 border-0 px-6 md:px-8 cursor-pointer">
-                                Try It Now — It's Free
+                                {user ? "Go to Chat" : "Try It Now — It's Free"}
                             </Button>
                         </Link>
                     </div>

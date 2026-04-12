@@ -10,6 +10,7 @@ import { ChatLayout } from '@/components/layouts/ChatLayout';
 import { LandingPage } from '@/pages/LandingPage';
 import { SendOtp } from '@/pages/auth/SendOtp';
 import { VerifyOtp } from '@/pages/auth/VerifyOtp';
+import { Profile } from '@/pages/Profile';
 import { Chat } from '@/pages/Chat';
 
 export const appRouter = createBrowserRouter([
@@ -37,6 +38,15 @@ export const appRouter = createBrowserRouter([
                                 element: <VerifyOtp />
                             }
                         ]
+                    }
+                ]
+            },
+            {
+                element: <ProtectedRoutes />,
+                children: [
+                    {
+                        path: "profile",
+                        element: <Profile />
                     }
                 ]
             },

@@ -5,6 +5,7 @@ import { socketAuthMiddleware } from "../middlewares/socket.middleware";
 import { enforceSingleConnection, cleanupUserConnection } from "./session.manager";
 import { registerLocationEvents } from "./location.socket";
 import { registerMessageEvents } from "./message.socket";
+import { registerPaginationEvents } from "./pagination.socket";
 
 export const initializeSocket = async (io: Server) => {
     await connectRedis();
@@ -20,6 +21,7 @@ export const initializeSocket = async (io: Server) => {
         await enforceSingleConnection(io, socket, userId);
         registerLocationEvents(io, socket);
         registerMessageEvents(io, socket);
+        registerPaginationEvents(io, socket);
 
         socket.on("disconnect", async () => {
             await cleanupUserConnection(socket, userId);

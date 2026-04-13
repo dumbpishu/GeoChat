@@ -22,11 +22,13 @@ app.get("/api/health", (_, res) => {
 
 import authRoutes from "./routes/auth.route";
 import userRoutes from "./routes/user.route";
-import chatRouts from "./routes/chat.route";
+import chatRoutes from "./routes/chat.route";
+import locationRoutes from "./routes/location.route";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/chats", chatRouts);
+app.use("/api/chats", chatRoutes);
+app.use("/api/locations", locationRoutes);
 
 app.use(errorHandler);
 

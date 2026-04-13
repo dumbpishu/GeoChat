@@ -9,6 +9,7 @@ export interface Message {
   createdAt: string;
   updatedAt: string;
   isSender?: boolean;
+  seenBy?: string[];
 }
 
 export interface Media {

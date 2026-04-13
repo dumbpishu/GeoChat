@@ -1,13 +1,16 @@
 import { useRef, useCallback, useEffect } from "react";
 import { Loader2, MapPin } from "lucide-react";
 import { useChatStore } from "@/store/chat.store";
+import { useUserStore } from "@/store/user.store";
 import { socketService } from "@/services/socket.service";
 import { MessageBubble } from "./MessageBubble";
 
 export const MessageList = () => {
   const { messages, pagination } = useChatStore();
+  const user = useUserStore((state) => state.user);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevMessagesLengthRef = useRef(messages.length);
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
 
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -31,11 +34,35 @@ export const MessageList = () => {
     prevMessagesLengthRef.current = messages.length;
   }, [messages.length]);
 
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScrollBottom = () => {
+      const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (scrollBottom < 100) {
+        const visibleMessages = messages.filter((msg) => {
+          if (msg.isSender === true) return false;
+          if (seenMessageIdsRef.current.has(msg._id)) return false;
+          return true;
+        });
+        
+        visibleMessages.forEach((msg) => {
+          socketService.markMessageSeen(msg._id);
+          seenMessageIdsRef.current.add(msg._id);
+        });
+      }
+    };
+
+    container.addEventListener("scroll", handleScrollBottom);
+    return () => container.removeEventListener("scroll", handleScrollBottom);
+  }, [messages]);
+
   return (
     <div
       ref={messagesContainerRef}
       onScroll={handleScroll}
-      className="h-full overflow-y-auto px-6 py-6 space-y-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+      className="h-full overflow-y-auto px-6 py-4 space-y-6 scrollbar-thin scrollbar-thumb-sky-300 scrollbar-track-transparent"
     >
       {pagination.loading && (
         <div className="flex justify-center py-3">
@@ -45,11 +72,11 @@ export const MessageList = () => {
 
       {messages.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
-          <div className="w-20 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-5 border border-slate-700/50">
-            <MapPin className="w-9 h-9 text-slate-500" />
+          <div className="w-20 rounded-2xl bg-sky-100 flex items-center justify-center mb-5 border border-sky-200">
+            <MapPin className="w-9 h-9 text-sky-500" />
           </div>
-          <p className="text-slate-400 text-lg font-medium">No messages yet</p>
-          <p className="text-slate-600 text-sm mt-1">Be the first to say hello!</p>
+          <p className="text-slate-600 text-lg font-medium">No messages yet</p>
+          <p className="text-slate-500 text-sm mt-1">Be the first to say hello!</p>
         </div>
       ) : (
         messages.map((msg) => (

@@ -59,14 +59,14 @@ export const ReactionPicker = ({ messageId, onSelect }: ReactionPickerProps) => 
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-slate-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          className="h-6 w-6 text-slate-400 hover:text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
         >
           <Smile className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         ref={popoverRef}
-        className="w-80 p-2 bg-slate-800 border-slate-700"
+        className="w-80 p-2 bg-white border border-sky-200 shadow-lg"
         align="start"
         side="top"
       >
@@ -77,12 +77,12 @@ export const ReactionPicker = ({ messageId, onSelect }: ReactionPickerProps) => 
               placeholder="Search emoji..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:border-sky-500"
+              className="w-full px-3 py-1.5 bg-sky-50 border border-sky-100 rounded-lg text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-sky-300"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -98,7 +98,7 @@ export const ReactionPicker = ({ messageId, onSelect }: ReactionPickerProps) => 
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${
                     activeCategory === category
                       ? "bg-sky-500 text-white"
-                      : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      : "bg-sky-50 text-slate-600 hover:bg-sky-100"
                   }`}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -112,7 +112,7 @@ export const ReactionPicker = ({ messageId, onSelect }: ReactionPickerProps) => 
               <button
                 key={`${emoji}-${index}`}
                 onClick={() => handleReactionClick(emoji)}
-                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-slate-700 rounded-md transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-sky-50 rounded-md transition-colors"
               >
                 {emoji}
               </button>
@@ -151,16 +151,16 @@ export const MessageReactions = ({ reactions, messageId }: MessageReactionsProps
         <button
           key={emoji}
           onClick={() => socketService.toggleReaction(messageId, emoji)}
-          className="flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-800/80 hover:bg-slate-700 rounded-full text-xs transition-colors"
+          className="flex items-center gap-0.5 px-1.5 py-0.5 bg-white/80 hover:bg-white rounded-full text-xs transition-colors border border-sky-100 shadow-sm"
         >
           <span>{emoji}</span>
-          <span className="text-slate-300">{users.length}</span>
+          <span className="text-slate-600">{users.length}</span>
         </button>
       ))}
       {userReaction && (
         <button
           onClick={() => socketService.toggleReaction(messageId, userReaction.emoji)}
-          className="flex items-center gap-0.5 px-1.5 py-0.5 bg-sky-500/20 hover:bg-sky-500/30 rounded-full text-xs transition-colors border border-sky-500/50"
+          className="flex items-center gap-0.5 px-1.5 py-0.5 bg-sky-50 hover:bg-sky-100 rounded-full text-xs transition-colors border border-sky-200"
         >
           <span>{userReaction.emoji}</span>
         </button>

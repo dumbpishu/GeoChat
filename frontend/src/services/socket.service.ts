@@ -121,6 +121,11 @@ class SocketService {
         useChatStore.getState().updateReaction(data);
       }
     );
+
+    // message seen
+    this.socket.on("message_seen", ({ messageId, seenBy }) => {
+      useChatStore.getState().markMessageSeen(messageId, seenBy);
+    });
   }
 
   // update location (with debug)

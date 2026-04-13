@@ -21,6 +21,7 @@ type Message = {
   createdAt: string;
   updatedAt: string;
   isSender?: boolean;
+  seenBy?: string[];
 };
 
 type PaginationState = {
@@ -43,6 +44,7 @@ type ChatState = {
   removeTypingUser: (userId: string) => void;
   setPagination: (pagination: Partial<PaginationState>) => void;
   updateReaction: (data: { messageId: string; userId: string; emoji: string; action: string }) => void;
+  markMessageSeen: (messageId: string, seenBy: string) => void;
   clearChat: () => void;
 };
 
@@ -132,6 +134,18 @@ export const useChatStore = create<ChatState>((set) => ({
         }
 
         return msg;
+      }),
+    })),
+
+  markMessageSeen: (messageId, seenBy) =>
+    set((state) => ({
+      messages: state.messages.map((msg) => {
+        if (msg._id !== messageId) return msg;
+        if (msg.seenBy?.includes(seenBy)) return msg;
+        return {
+          ...msg,
+          seenBy: [...(msg.seenBy || []), seenBy],
+        };
       }),
     })),
 

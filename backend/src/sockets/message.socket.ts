@@ -2,7 +2,6 @@ import { Socket, Server } from "socket.io";
 import { pubClient } from "../config/redis";
 import { Message } from "../models/message.model";
 import mongoose from "mongoose";
-import { sendEmailService } from "../services/email.service";
 
 type MediaType = {
   url: string;
@@ -17,9 +16,12 @@ type SendMessagePayload = {
 
 export const registerMessageEvents = (io: Server, socket: Socket) => {
   socket.on("send_message", async (data: SendMessagePayload) => {
+    console.log(`Received send_message from ${socket.id}:`, data);
     try {
       const userId = socket.data.userId;
       const roomId = socket.data.currentRoom;
+
+      console.log(`User ID: ${userId}, Room ID: ${roomId}`);
 
       if (!userId || !roomId) {
         return socket.emit("error", "Unauthorized");

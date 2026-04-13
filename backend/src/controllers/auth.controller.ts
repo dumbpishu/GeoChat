@@ -29,7 +29,8 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000,
+        path: "/"
     })
 
     res.status(200).json(new ApiResponse(200, "OTP verified successfully.", user));

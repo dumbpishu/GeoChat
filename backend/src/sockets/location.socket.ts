@@ -7,6 +7,7 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
   socket.on(
     "update_location",
     async (data: { lat: number; long: number }) => {
+      console.log(`Received location update from ${socket.id}:`, data);
       try {
         const { lat, long } = data;
 

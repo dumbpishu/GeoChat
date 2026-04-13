@@ -6,34 +6,44 @@ import { formatMessage } from "../utils/formatMessage";
 import { pubClient } from "../config/redis";
 
 export const registerReactionEvents = (io: Server, socket: Socket) => {
-
   socket.on(
     "toggle_reaction",
     async (data: { messageId: string; emoji: string }) => {
       try {
-        const userId = socket.data.userId;
-        const roomId = socket.data.currentRoom;
+        const userIdRaw = socket.data.userId;
+        if (!userIdRaw) return;
 
-        if (!userId || !roomId) return;
+        const userId = userIdRaw.toString();
+
+        // get current room from REDIS (source of truth)
+        const roomId = await pubClient.get(`user_room:${userId}`);
+        if (!roomId) return;
 
         const { messageId, emoji } = data;
 
+        // validate messageId + emoji
         if (!mongoose.Types.ObjectId.isValid(messageId)) return;
 
         if (!isValidEmoji(emoji)) {
           return socket.emit("error", "Invalid emoji");
         }
 
+        // fetch message from db
         const message = await Message.findById(messageId);
 
         if (!message) return;
 
-        // find existing reaction by this user
+        // authorization check: ensure message belongs to the same room
+        if (message.roomId.toString() !== roomId) {
+          return socket.emit("error", "Unauthorized action");
+        }
+
+        // toggle reaction
         const existingIndex = message.reactions.findIndex(
-          (r) => r.userId.toString() === userId.toString()
+          (r) => r.userId.toString() === userId
         );
 
-        let action = "";
+        let action: "added" | "removed" | "updated";
 
         if (existingIndex !== -1) {
           const existingReaction = message.reactions[existingIndex];
@@ -58,25 +68,34 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
 
         await message.save();
 
-        const populatedMessage = await Message.findById(messageId).populate({
-          path: "reactions.userId",
-          select: "name username avatar",
-        });
+        // populate reactions for response
+        const populatedMessage = await Message.findById(messageId)
+          .select("reactions")
+          .populate({
+            path: "reactions.userId",
+            select: "name username avatar",
+          })
+          .lean();
 
         if (!populatedMessage) return;
 
-        const formattedMessage = formatMessage(populatedMessage.toObject());
+        const formattedReactions = formatMessage({
+          ...message.toObject(),
+          reactions: populatedMessage.reactions,
+        }).reactions;
 
+        // update Redis cache (if message is cached) - best effort, no critical failure if it fails
         try {
-          await pubClient.del(`recent_messages:${roomId}`); // invalidate cache for this room
+          // soft expire cache to force refresh on next fetch
+          await pubClient.expire(`recent_messages:${roomId}`, 10);
         } catch (error) {
-          console.error("Redis cache invalidation error:", error);
+          console.error("Redis cache update error:", error);
         }
 
-        // notify room about reaction change
+        // emit updated reactions to room
         io.to(roomId).emit("reaction_updated", {
           messageId,
-          reactions: formattedMessage.reactions,
+          reactions: formattedReactions,
           action,
         });
 

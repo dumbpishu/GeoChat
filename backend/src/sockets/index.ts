@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { pubClient, subClient, connectRedis } from "../config/redis";
 import { socketAuthMiddleware } from "../middlewares/socket.middleware";
-import { enforceSingleConnection, cleanupUserConnection } from "./session.manager";
+import { enforceSingleConnection } from "./session.manager";
 
 import { registerLocationEvents } from "./location.socket";
 import { registerMessageEvents } from "./message.socket";
@@ -29,9 +29,38 @@ export const initializeSocket = async (io: Server) => {
         registerReactionEvents(io, socket);
 
         socket.on("disconnect", async () => {
-            await cleanupUserConnection(socket, userId);
+            const roomId = socket.data.currentRoom;
 
-            console.log(`Client disconnected: ${socket.id} (User ID: ${userId})`);
+            try {
+                // remove from room presence
+                if (roomId) {
+                const removed = await pubClient.sRem(
+                    `online_users:${roomId}`,
+                    userId
+                );
+
+                if (removed) {
+                    const count = await pubClient.sCard(
+                    `online_users:${roomId}`
+                    );
+
+                    socket.to(roomId).emit("online_users_count", count);
+                }
+                }
+
+                // safe user cleanup
+                const storedSocketId = await pubClient.get(`user:${userId}`);
+
+                // prevent race condition
+                if (storedSocketId === socket.id) {
+                await pubClient.del(`user:${userId}`);
+                }
+
+            } catch (err) {
+                console.error("Disconnect cleanup error:", err);
+            }
+
+            console.log(`Client disconnected: ${socket.id}`);
         });
     });
 };

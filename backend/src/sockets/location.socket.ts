@@ -8,62 +8,75 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
     "update_location",
     async (data: { lat: number; long: number }) => {
       console.log(`Received location update from ${socket.id}:`, data);
+
       try {
         const { lat, long } = data;
 
-        const userId = socket.data.userId;
-        if (!userId) return;
+        const userIdRaw = socket.data.userId;
+        if (!userIdRaw) return;
+
+        const userId = userIdRaw.toString();
 
         const newRoom = getRoom(lat, long);
-        const currentRoom = socket.data.currentRoom;
 
-        if (currentRoom === newRoom) return;
+        // idempotent room join + presence update
+        const prevRoom = await pubClient.get(`user_room:${userId}`);
 
-        // leave old room
-        if (currentRoom) {
-          socket.leave(currentRoom);
+        // same room rejoin (e.g. minor location change) - just update presence
+        if (prevRoom === newRoom) {
+          await pubClient.sAdd(`online_users:${newRoom}`, userId);
+
+          const count = await pubClient.sCard(`online_users:${newRoom}`);
+          socket.emit("online_users_count", count);
+
+          return;
+        }
+
+        // leave previous room + update presence
+        if (prevRoom) {
+          socket.leave(prevRoom);
 
           try {
             const removed = await pubClient.sRem(
-              `online_users:${currentRoom}`,
+              `online_users:${prevRoom}`,
               userId
             );
 
             if (removed) {
               const count = await pubClient.sCard(
-                `online_users:${currentRoom}`
+                `online_users:${prevRoom}`
               );
-              io.to(currentRoom).emit("online_users_count", count);
+
+              io.to(prevRoom).emit("online_users_count", count);
             }
           } catch (err) {
             console.error("Redis remove error:", err);
           }
         }
 
-        // join new room
+        // join new room + update presence
         socket.join(newRoom);
-        socket.data.currentRoom = newRoom;
 
         try {
-          const added = await pubClient.sAdd(
-            `online_users:${newRoom}`,
-            userId
-          );
+          await pubClient.sAdd(`online_users:${newRoom}`, userId);
+
+          // single room per user (update REDIS)
+          await pubClient.set(`user_room:${userId}`, newRoom, {
+            EX: 60 * 60, // 1 hour TTL
+          });
 
           const count = await pubClient.sCard(
             `online_users:${newRoom}`
           );
 
           socket.emit("online_users_count", count);
+          socket.to(newRoom).emit("online_users_count", count);
 
-          if (added) {
-            socket.to(newRoom).emit("online_users_count", count);
-          }
         } catch (err) {
           console.error("Redis add error:", err);
         }
 
-        // fetch messages - first try Redis cache
+        // fetch messages cache first
         let messages: any[] = [];
 
         try {
@@ -80,7 +93,7 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
           console.error("Redis fetch error:", err);
         }
 
-        // fallback to MongoDB if cache miss
+        // fallback to mongodb
         if (messages.length === 0) {
           const dbMessages = await Message.find({ roomId: newRoom })
             .sort({ createdAt: -1 })
@@ -89,23 +102,22 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
 
           messages = dbMessages;
 
-          // rebuild Redis cache asynchronously (don't await)
+          // rebuild Redis cache for this room (if DB has messages)
           if (dbMessages.length > 0) {
             try {
               const pipeline = pubClient.multi();
 
-              // reverse → so oldest goes first for rPush
-              dbMessages.reverse().forEach((msg) => {
-                pipeline.rPush(
-                  `recent_messages:${newRoom}`,
-                  JSON.stringify(msg)
-                );
-              });
+              dbMessages
+                .slice() // avoid mutation
+                .reverse()
+                .forEach((msg) => {
+                  pipeline.rPush(
+                    `recent_messages:${newRoom}`,
+                    JSON.stringify(msg)
+                  );
+                });
 
-              // keep only last 50
               pipeline.lTrim(`recent_messages:${newRoom}`, 0, 49);
-
-              // TTL (1 hour)
               pipeline.expire(`recent_messages:${newRoom}`, 3600);
 
               await pipeline.exec();
@@ -115,7 +127,7 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
           }
         }
 
-        // send messages to client in chronological order
+        // send most recent 50 messages (newest last)
         socket.emit("recent_messages", messages.reverse());
 
       } catch (error) {

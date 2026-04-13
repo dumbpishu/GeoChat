@@ -17,15 +17,17 @@ type SendMessagePayload = {
 
 export const registerMessageEvents = (io: Server, socket: Socket) => {
   socket.on("send_message", async (data: SendMessagePayload) => {
-    console.log(`Received send_message from ${socket.id}:`, data);
     try {
-      const userId = socket.data.userId;
-      const roomId = socket.data.currentRoom;
+      const userIdRaw = socket.data.userId;
+      if (!userIdRaw) return socket.emit("error", "Unauthorized");
 
-      console.log(`User ID: ${userId}, Room ID: ${roomId}`);
+      const userId = userIdRaw.toString();
 
-      if (!userId || !roomId) {
-        return socket.emit("error", "Unauthorized");
+      // get current room from REDIS (source of truth)
+      const roomId = await pubClient.get(`user_room:${userId}`);
+
+      if (!roomId) {
+        return socket.emit("error", "User not in any room");
       }
 
       // rate limit: max 5 messages per second
@@ -34,7 +36,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         const count = await pubClient.incr(rateKey);
 
         if (count === 1) {
-          await pubClient.expire(rateKey, 1); // 1 sec window
+          await pubClient.expire(rateKey, 1);
         }
 
         if (count > 5) {
@@ -42,7 +44,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         }
       } catch (err) {
         console.error("Rate limit error:", err);
-        // don't block message if Redis fails
       }
 
       // clean input
@@ -58,7 +59,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Message too long");
       }
 
-      // valid media items
+      // valid media
       const validMedia = media.filter((item) => {
         return (
           item?.url &&
@@ -68,7 +69,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         );
       });
 
-      // unique and valid mentions
+      // valid mentions (must be valid ObjectId)
       const validMentions = [
         ...new Set(
           mentions.filter((id) =>
@@ -77,7 +78,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
-      // save to MongoDB
+      // save to db
       const messageDoc = await Message.create({
         roomId,
         senderId: userId,
@@ -86,29 +87,42 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         mentions: validMentions.length > 0 ? validMentions : undefined,
       });
 
-      // format message for emission
       const formattedMessage = formatMessage({
         ...messageDoc.toObject(),
-        reactions: [], // new message has no reactions
+        reactions: [],
       });
 
-      // cache in Redis (LPUSH + LTRIM for recent messages)
+      // redis cache (recent 50 messages per room)
       try {
-        await pubClient.lPush(
+        const pipeline = pubClient.multi();
+
+        pipeline.lPush(
           `recent_messages:${roomId}`,
           JSON.stringify(formattedMessage)
         );
 
-        await pubClient.lTrim(`recent_messages:${roomId}`, 0, 49);
+        pipeline.lTrim(`recent_messages:${roomId}`, 0, 49);
+
+        // refresh TTL
+        pipeline.expire(`recent_messages:${roomId}`, 3600);
+
+        await pipeline.exec();
       } catch (err) {
         console.error("Redis cache error:", err);
       }
 
-        // emit to room
-      socket.emit("new_message", { ...formattedMessage, isSender: true }); // send to sender
-      socket.to(roomId).emit("new_message", { ...formattedMessage, isSender: false }); // send to others
+      // emit messages
+      socket.emit("new_message", {
+        ...formattedMessage,
+        isSender: true,
+      });
 
-      // notify mentioned users
+      socket.to(roomId).emit("new_message", {
+        ...formattedMessage,
+        isSender: false,
+      });
+
+      // mentions notifications
       for (const mentionedUserId of validMentions) {
         try {
           const socketId = await pubClient.get(
@@ -123,8 +137,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
               text: messageDoc.text,
             });
           } else {
-            // user offline - could store notifications in DB for later retrieval
-
+            // TODO: store offline notifications
           }
         } catch (err) {
           console.error("Mention notify error:", err);
@@ -137,21 +150,24 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
     }
   });
 
-  socket.on("message_seen", ({ messageId }) => {
+  // message seen
+  socket.on("message_seen", async ({ messageId }) => {
     try {
-        const roomId = socket.data.currentRoom;
-        const userId = socket.data.userId;
+      const userIdRaw = socket.data.userId;
+      if (!userIdRaw || !messageId) return;
 
-        if (!roomId || !userId || !messageId) return;
+      const userId = userIdRaw.toString();
 
-        // notify sender (and others if needed)
-        socket.to(roomId).emit("message_seen", {
+      const roomId = await pubClient.get(`user_room:${userId}`);
+      if (!roomId) return;
+
+      socket.to(roomId).emit("message_seen", {
         messageId,
         seenBy: userId,
-        });
+      });
 
     } catch (err) {
-        console.error("message_seen error:", err);
+      console.error("message_seen error:", err);
     }
   });
 };

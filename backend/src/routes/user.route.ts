@@ -1,5 +1,5 @@
 import express from "express";
-import { updateUser, updateUserAvatar, deleteUser } from "../controllers/user.controller";
+import { updateUser, updateUserAvatar, deleteUser, searchMentionsUsers } from "../controllers/user.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import { updateUserSchema } from "../validations/user.validation";
@@ -12,5 +12,6 @@ router.use(authMiddleware);
 router.patch("/info", validate(updateUserSchema), updateUser);
 router.patch("/avatar", upload.single("avatar"), updateUserAvatar);
 router.delete("/", deleteUser);
+router.get("/mentions", searchMentionsUsers);
 
 export default router;

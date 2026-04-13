@@ -71,3 +71,23 @@ export const deleteUserService = async (userId: string) => {
     user.isDeleted = true;
     await user.save();
 }
+
+export const searchMentionsUsersService = async (query: string) => {
+    if (!query) {
+        return [];
+    }
+
+    const users = await User.find({
+        username: {
+            $regex: query,
+            $options: "i", // Case-insensitive search
+        }
+    }).select("_id name username avatar").limit(10);
+
+    return users.map(user => ({
+        id: user._id.toString(),
+        name: user.name || "",
+        username: user.username,
+        avatar: user.avatar?.url || undefined,
+    }));
+}

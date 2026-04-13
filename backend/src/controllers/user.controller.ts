@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse } from "../utils/ApiResponse";
-import { updateUserService, updateUserAvatarService, deleteUserService } from "../services/user.service";
+import { updateUserService, updateUserAvatarService, deleteUserService, searchMentionsUsersService } from "../services/user.service";
 import { ApiError } from "../utils/ApiError";
 
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
@@ -31,4 +31,16 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
     await deleteUserService(userId);
 
     res.status(200).json(new ApiResponse(200, "User account deleted successfully."));
+});
+
+export const searchMentionsUsers = asyncHandler(async (req: Request, res: Response) => {
+    const { q } = req.query;
+
+    if (typeof q !== "string" || q.trim() === "") {
+        throw new ApiError(400, "Query parameter is required and must be a non-empty string.");
+    }
+
+    const users = await searchMentionsUsersService(q);
+
+    res.status(200).json(new ApiResponse(200, "Users found.", users));
 });

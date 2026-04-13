@@ -2,6 +2,8 @@ import { Server, Socket } from "socket.io";
 import { Message } from "../models/message.model";
 import { isValidEmoji } from "../utils/emoji";
 import mongoose from "mongoose";
+import { formatMessage } from "../utils/formatMessage";
+import { pubClient } from "../config/redis";
 
 export const registerReactionEvents = (io: Server, socket: Socket) => {
 
@@ -56,12 +58,26 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
 
         await message.save();
 
+        const populatedMessage = await Message.findById(messageId).populate({
+          path: "reactions.userId",
+          select: "name username avatar",
+        });
+
+        if (!populatedMessage) return;
+
+        const formattedMessage = formatMessage(populatedMessage.toObject());
+
+        try {
+          await pubClient.del(`recent_messages:${roomId}`); // invalidate cache for this room
+        } catch (error) {
+          console.error("Redis cache invalidation error:", error);
+        }
+
         // notify room about reaction change
         io.to(roomId).emit("reaction_updated", {
           messageId,
-          userId,
-          emoji,
-          action, // added | updated | removed
+          reactions: formattedMessage.reactions,
+          action,
         });
 
       } catch (err) {

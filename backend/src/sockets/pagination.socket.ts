@@ -1,6 +1,7 @@
 import { Socket, Server } from "socket.io";
 import { Message } from "../models/message.model";
 import mongoose from "mongoose";
+import { formatMessage } from "../utils/formatMessage";
 
 export const registerPaginationEvents = (io: Server, socket: Socket) => {
   socket.on(
@@ -37,6 +38,7 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
             createdAt: 1,
             updatedAt: 1,
           })
+          .populate("reactions.userId", "name username avatar")
           .sort({ _id: -1 })
           .limit(limit + 1)
           .lean();
@@ -47,7 +49,7 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
           messages.pop();
         }
 
-        const formattedMessages = messages.reverse();
+        const formattedMessages = messages.reverse().map(msg => formatMessage(msg));
 
         const nextCursor =
           formattedMessages.length > 0

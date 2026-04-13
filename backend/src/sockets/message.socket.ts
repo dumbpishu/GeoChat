@@ -2,6 +2,7 @@ import { Socket, Server } from "socket.io";
 import { pubClient } from "../config/redis";
 import { Message } from "../models/message.model";
 import mongoose from "mongoose";
+import { formatMessage } from "../utils/formatMessage";
 
 type MediaType = {
   url: string;
@@ -86,23 +87,16 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
       });
 
       // format message for emission
-      const message = {
-        _id: messageDoc._id,
-        roomId: messageDoc.roomId,
-        senderId: messageDoc.senderId,
-        text: messageDoc.text,
-        media: messageDoc.media,
-        mentions: messageDoc.mentions,
-        reactions: messageDoc.reactions,
-        createdAt: messageDoc.createdAt,
-        updatedAt: messageDoc.updatedAt,
-      };
+      const formattedMessage = formatMessage({
+        ...messageDoc.toObject(),
+        reactions: [], // new message has no reactions
+      });
 
       // cache in Redis (LPUSH + LTRIM for recent messages)
       try {
         await pubClient.lPush(
           `recent_messages:${roomId}`,
-          JSON.stringify(message)
+          JSON.stringify(formattedMessage)
         );
 
         await pubClient.lTrim(`recent_messages:${roomId}`, 0, 49);
@@ -111,8 +105,8 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
       }
 
         // emit to room
-      socket.emit("new_message", { ...message, isSender: true }); // send to sender
-      socket.to(roomId).emit("new_message", { ...message, isSender: false }); // send to others
+      socket.emit("new_message", { ...formattedMessage, isSender: true }); // send to sender
+      socket.to(roomId).emit("new_message", { ...formattedMessage, isSender: false }); // send to others
 
       // notify mentioned users
       for (const mentionedUserId of validMentions) {
@@ -123,10 +117,10 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
 
           if (socketId) {
             io.to(socketId).emit("mention_notification", {
-              messageId: message._id,
+              messageId: messageDoc._id,
               roomId,
               senderId: userId,
-              text: message.text,
+              text: messageDoc.text,
             });
           } else {
             // user offline - could store notifications in DB for later retrieval

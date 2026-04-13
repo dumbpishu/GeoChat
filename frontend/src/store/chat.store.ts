@@ -56,17 +56,27 @@ export const useChatStore = create<ChatState>((set) => ({
     loading: false,
   },
 
-  setMessages: (messages) => set({ messages }),
+  setMessages: (messages) => {
+    const uniqueMessages = messages.filter(
+      (msg, index, self) => index === self.findIndex((m) => m._id === msg._id)
+    );
+    set({ messages: uniqueMessages });
+  },
 
   addMessage: (message) =>
-    set((state) => ({
-      messages: [...state.messages, message],
-    })),
+    set((state) => {
+      if (state.messages.some((m) => m._id === message._id)) {
+        return state;
+      }
+      return { messages: [...state.messages, message] };
+    }),
 
   addOlderMessages: (olderMessages) =>
-    set((state) => ({
-      messages: [...olderMessages, ...state.messages],
-    })),
+    set((state) => {
+      const existingIds = new Set(state.messages.map((m) => m._id));
+      const newMessages = olderMessages.filter((m) => !existingIds.has(m._id));
+      return { messages: [...newMessages, ...state.messages] };
+    }),
 
   setOnlineUsersCount: (count) => set({ onlineUsersCount: count }),
 

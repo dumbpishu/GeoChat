@@ -39,11 +39,11 @@ class SocketService {
 
     // connect
     this.socket.on("connect", () => {
-      console.log("✅ Socket connected:", this.socket?.id);
+      console.log("Socket connected:", this.socket?.id);
 
       // send location after connect if we have it
       if (this.currentLocation) {
-        console.log("📍 Sending location after connect");
+        console.log("Sending location after connect");
         this.updateLocation(
           this.currentLocation.lat,
           this.currentLocation.long
@@ -53,17 +53,17 @@ class SocketService {
 
     // connect error
     this.socket.on("connect_error", (err) => {
-      console.error("❌ Connect error:", err.message);
+      console.error("Connect error:", err.message);
     });
 
     // disconnect
     this.socket.on("disconnect", (reason) => {
-      console.log("⚠️ Socket disconnected:", reason);
+      console.log("Socket disconnected:", reason);
     });
 
     // server error
     this.socket.on("error", (error: string) => {
-      console.error("❌ Socket error:", error);
+      console.error("Socket error:", error);
     });
 
     // online users count
@@ -73,7 +73,7 @@ class SocketService {
 
     // initial load of recent messages
     this.socket.on("recent_messages", (messages: any[]) => {
-      console.log("📨 Received recent messages:", messages.length);
+      console.log("Received recent messages:", messages.length);
       useChatStore.getState().setMessages(messages);
     });
 
@@ -147,7 +147,7 @@ class SocketService {
       return;
     }
 
-    console.log("📤 Sending message:", text);
+    console.log("Sending message:", text);
 
     this.socket.emit("send_message", {
       text,

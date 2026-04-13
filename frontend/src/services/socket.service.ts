@@ -37,11 +37,11 @@ class SocketService {
   private setupEventListeners() {
     if (!this.socket) return;
 
-    // ✅ CONNECT
+    // connect
     this.socket.on("connect", () => {
       console.log("✅ Socket connected:", this.socket?.id);
 
-      // 🔥 VERY IMPORTANT: send location AFTER connection
+      // send location after connect if we have it
       if (this.currentLocation) {
         console.log("📍 Sending location after connect");
         this.updateLocation(
@@ -51,39 +51,39 @@ class SocketService {
       }
     });
 
-    // ❌ CONNECT ERROR
+    // connect error
     this.socket.on("connect_error", (err) => {
       console.error("❌ Connect error:", err.message);
     });
 
-    // 🔌 DISCONNECT
+    // disconnect
     this.socket.on("disconnect", (reason) => {
       console.log("⚠️ Socket disconnected:", reason);
     });
 
-    // ⚠️ SERVER ERROR
+    // server error
     this.socket.on("error", (error: string) => {
       console.error("❌ Socket error:", error);
     });
 
-    // 👥 ONLINE USERS
+    // online users count
     this.socket.on("online_users_count", (count: number) => {
       useChatStore.getState().setOnlineUsersCount(count);
     });
 
-    // 💬 INITIAL MESSAGES
+    // initial load of recent messages
     this.socket.on("recent_messages", (messages: any[]) => {
       console.log("📨 Received recent messages:", messages.length);
       useChatStore.getState().setMessages(messages);
     });
 
-    // 🆕 NEW MESSAGE
+    // new message
     this.socket.on("new_message", (message: any) => {
       console.log("New message received");
       useChatStore.getState().addMessage(message);
     });
 
-    // ⬆️ PAGINATION
+    // pagination of older messages
     this.socket.on(
       "older_messages",
       (data: {
@@ -100,7 +100,7 @@ class SocketService {
       }
     );
 
-    // ⌨️ TYPING
+    // typing indicators
     this.socket.on("user_typing", ({ userId }) => {
       useChatStore.getState().addTypingUser(userId);
     });
@@ -109,7 +109,7 @@ class SocketService {
       useChatStore.getState().removeTypingUser(userId);
     });
 
-    // ❤️ REACTIONS
+    // reactions
     this.socket.on(
       "reaction_updated",
       (data: {
@@ -123,7 +123,7 @@ class SocketService {
     );
   }
 
-  // ✅ FIXED: store location + send only if connected
+  // update location (with debug)
   updateLocation(lat: number, long: number) {
     this.currentLocation = { lat, long };
 
@@ -136,7 +136,7 @@ class SocketService {
     this.socket.emit("update_location", { lat, long });
   }
 
-  // 💬 SEND MESSAGE (with debug)
+  // send message (with debug)
   sendMessage(
     text: string,
     media?: { url: string; type: string }[],

@@ -1,145 +1,201 @@
-import { useState } from "react";
-import { Search, Phone, Video, Send, Paperclip, Image, MoreVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-interface Conversation {
-    id: string;
-    name: string;
-    avatar: string;
-    lastMessage: string;
-    time: string;
-    unread: number;
-    online: boolean;
-}
-
-const conversations: Conversation[] = [
-    { id: "1", name: "Sarah Johnson", avatar: "S", lastMessage: "Hey! Are we still meeting today?", time: "2m", unread: 2, online: true },
-    { id: "2", name: "Mike Chen", avatar: "M", lastMessage: "The location looks great!", time: "1h", unread: 0, online: false },
-    { id: "3", name: "Emma Wilson", avatar: "E", lastMessage: "Thanks for the info", time: "3h", unread: 0, online: true },
-    { id: "4", name: "David Brown", avatar: "D", lastMessage: "See you tomorrow", time: "Yesterday", unread: 1, online: false },
-];
-
-interface Message {
-    id: string;
-    sender: "me" | "other";
-    text: string;
-    time: string;
-}
-
-const messages: Message[] = [
-    { id: "1", sender: "other", text: "Hi there! How are you?", time: "10:30 AM" },
-    { id: "2", sender: "me", text: "I'm doing great!", time: "10:32 AM" },
-    { id: "3", sender: "other", text: "Want to grab coffee?", time: "10:33 AM" },
-    { id: "4", sender: "me", text: "Sure! When?", time: "10:35 AM" },
-    { id: "5", sender: "other", text: "How about tomorrow?", time: "10:36 AM" },
-];
+import { useEffect, useRef, useState } from "react";
+import { MapPin, Users, Send, Paperclip, X, Loader2 } from "lucide-react";
+import { useLocationStore } from "@/store/location.store";
+import { useChatStore } from "@/store/chat.store";
+import { useUserStore } from "@/store/user.store";
+import { socketService } from "@/services/socket.service";
+import { LocationLoading, LocationError } from "@/components/chat/ChatHeader";
+import { MessageList } from "@/components/chat/MessageList";
 
 export const Chat = () => {
-    const [selectedId, setSelectedId] = useState("1");
-    const [message, setMessage] = useState("");
-    const current = conversations.find(c => c.id === selectedId);
+  const { location, loading: locationLoading, error: locationError, fetchLocation } = useLocationStore();
+  const { onlineUsersCount } = useChatStore();
+  const user = useUserStore((state) => state.user);
+  const hasConnectedRef = useRef(false);
 
-    const handleSend = () => {
-        if (!message.trim()) return;
-        setMessage("");
-    };
+  const [messageText, setMessageText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string; file?: File }[]>([]);
 
-    return (
-        <>
-            <div className="w-full md:w-80 border-r border-slate-800/50 flex flex-col bg-slate-900/30">
-                <div className="p-4 border-b border-slate-800/50">
-                    <h2 className="text-lg font-semibold text-white mb-3">Messages</h2>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 cursor-text"
-                        />
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                    {conversations.map((c) => (
-                        <div
-                            key={c.id}
-                            onClick={() => setSelectedId(c.id)}
-                            className={`p-3 border-b border-slate-800/30 cursor-pointer transition-colors ${selectedId === c.id ? "bg-slate-800/50" : "hover:bg-slate-800/30"}`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-sm font-medium">
-                                        {c.avatar}
-                                    </div>
-                                    {c.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-slate-900 rounded-full" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-white truncate">{c.name}</span>
-                                        <span className="text-xs text-slate-500">{c.time}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-1">
-                                        <span className="text-sm text-slate-400 truncate">{c.lastMessage}</span>
-                                        {c.unread > 0 && <span className="min-w-[18px] h-[18px] px-1 bg-sky-500 text-white text-xs rounded-full flex items-center justify-center">{c.unread}</span>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+  useEffect(() => {
+    fetchLocation();
+  }, [fetchLocation]);
+
+  useEffect(() => {
+    if (!location || hasConnectedRef.current) return;
+
+    hasConnectedRef.current = true;
+    socketService.connect();
+
+    setTimeout(() => {
+      socketService.updateLocation(location.lat, location.long);
+    }, 500);
+  }, [location]);
+
+  const handleSend = async () => {
+    if (!messageText.trim() && previewMedia.length === 0) return;
+    if (sending) return;
+
+    setSending(true);
+
+    try {
+      let uploadedMedia: { url: string; type: string }[] = [];
+
+      if (previewMedia.length > 0) {
+        const files = previewMedia.map(m => m.file).filter(Boolean) as File[];
+        const { uploadChatMediaApi } = await import("@/api/chat.api");
+        uploadedMedia = await uploadChatMediaApi(files);
+      }
+
+      socketService.sendMessage(messageText.trim(), uploadedMedia.length > 0 ? uploadedMedia : undefined);
+      setMessageText("");
+      setPreviewMedia([]);
+    } catch (error: any) {
+      console.error("Failed to send:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    if (previewMedia.length >= 1) return;
+
+    const file = files[0];
+    const isImage = file.type.startsWith("image/");
+    
+    setPreviewMedia([{
+      url: URL.createObjectURL(file),
+      type: isImage ? "image" : "file",
+      file
+    }]);
+    e.target.value = "";
+  };
+
+  const removePreview = (index: number) => {
+    setPreviewMedia(prev => prev.filter((_, i) => i !== index));
+  };
+
+  if (locationLoading) {
+    return <LocationLoading />;
+  }
+
+  if (locationError || !location) {
+    return <LocationError onRetry={() => {}} />;
+  }
+
+  return (
+    <div className="flex flex-col h-screen max-w-7xl mx-auto overflow-hidden">
+      {/* Header */}
+      <header className="flex-none h-14 px-4 md:px-6 flex items-center justify-between border-b border-sky-300">
+        <div className="flex items-center gap-4">
+          <a 
+            href="/"
+            className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center shadow-lg shadow-sky-500/20 hover:shadow-sky-500/40 transition-all duration-300 hover:scale-105"
+          >
+            <MapPin className="w-5 h-5 text-white" />
+          </a>
+          <div>
+            <h3 className="text-base font-semibold text-slate-800 tracking-tight">GeoChat</h3>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <span className="text-slate-400">{location.city || location.country || "Local Area"}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-full border border-sky-100">
+            <Users className="w-4 h-4 text-sky-500" />
+            <span className="text-sm font-medium text-slate-600">{onlineUsersCount}</span>
+            <span className="text-xs text-slate-400">online</span>
+          </div>
+          
+          {user?.avatar ? (
+            <img 
+              src={user.avatar} 
+              alt="Profile" 
+              className="w-9 h-9 rounded-full ring-2 ring-sky-100 object-cover"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center text-white text-sm font-semibold ring-2 ring-sky-100">
+              {user?.name?.charAt(0) || "U"}
             </div>
+          )}
+        </div>
+      </header>
 
-            <div className="flex-1 flex flex-col bg-slate-900/50">
-                <div className="h-16 border-b border-slate-800/50 flex items-center justify-between px-4 bg-slate-900/30">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-sm font-medium">
-                                {current?.avatar}
-                            </div>
-                            {current?.online && <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 border-2 border-slate-900 rounded-full" />}
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-white">{current?.name}</h3>
-                            <p className="text-xs text-green-400">{current?.online ? "Online" : "Offline"}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white cursor-pointer"><Phone className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white cursor-pointer"><Video className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white cursor-pointer"><MoreVertical className="w-4 h-4" /></Button>
-                    </div>
-                </div>
+      {/* Messages */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <MessageList />
+      </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[70%] ${msg.sender === "me" ? "order-2" : "order-1"}`}>
-                                <div className={`px-4 py-2 rounded-2xl ${msg.sender === "me" ? "bg-sky-500 text-white rounded-br-md" : "bg-slate-800 text-slate-200 rounded-bl-md"}`}>
-                                    <p className="text-sm">{msg.text}</p>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-1">{msg.time}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+      {/* Preview Media */}
+      {previewMedia.length > 0 && (
+        <div className="flex-none px-6 py-3 border-t border-sky-300">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {previewMedia.map((media, index) => (
+              <div key={index} className="relative flex-shrink-0">
+                {media.type === "image" ? (
+                  <img src={media.url} alt="Preview" className="w-16 h-16 rounded-lg object-cover" />
+                ) : (
+                  <div className="w-16 h-16 bg-white/50 rounded-lg flex items-center justify-center">
+                    <Paperclip className="w-5 h-5 text-slate-400" />
+                  </div>
+                )}
+                <button
+                  onClick={() => removePreview(index)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 rounded-full flex items-center justify-center shadow-lg"
+                >
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-                <div className="p-4 border-t border-slate-800/50 bg-slate-900/30">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white cursor-pointer shrink-0"><Paperclip className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white cursor-pointer shrink-0"><Image className="w-4 h-4" /></Button>
-                        <input
-                            type="text"
-                            placeholder="Type a message..."
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                            className="flex-1 px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-full text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 cursor-text"
-                        />
-                        <Button onClick={handleSend} disabled={!message.trim()} size="icon" className="bg-sky-500 hover:bg-sky-600 border-0 cursor-pointer shrink-0">
-                            <Send className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
+      {/* Input */}
+      <div className="flex-none px-4 md:px-6 pb-5">
+        <div className="flex items-center gap-3 bg-white rounded-xl px-3 py-2.5">
+          <input
+            type="file"
+            className="hidden"
+            id="file-input"
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+          />
+          
+          <label
+            htmlFor="file-input"
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 hover:text-sky-500 transition-all cursor-pointer"
+          >
+            <Paperclip className="w-4 h-4" />
+          </label>
+          
+          <input
+            type="text"
+            placeholder="Type a message..."
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            className="flex-1 px-3 py-2 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none rounded-lg"
+          />
+          
+          <button
+            onClick={handleSend}
+            disabled={(!messageText.trim() && previewMedia.length === 0) || sending}
+            className="w-10 h-10 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 flex items-center justify-center text-white hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {sending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };

@@ -8,24 +8,23 @@ export const enforceSingleConnection = async (
 ) => {
   try {
     const key = `user:${userId}`;
-    const existingSocketId = await pubClient.get(key);
 
-    if (existingSocketId && existingSocketId !== socket.id) {
+    // atomic get-set to ensure only one active session per user
+    const oldSocketId = await pubClient.getSet(key, socket.id);
+
+    // If another session exists → force logout
+    if (oldSocketId && oldSocketId !== socket.id) {
       console.log("Enforcing single connection for user:", userId);
 
-      io.to(existingSocketId).emit(
+      // Notify old session
+      io.to(oldSocketId).emit(
         "force_logout",
         "Logged in from another device"
       );
 
-      const oldSocket = io.sockets.sockets.get(existingSocketId);
-      oldSocket?.disconnect(true);
+      // disconnect old session
+      io.in(oldSocketId).disconnectSockets(true);
     }
-
-    // ALWAYS set (even if no previous socket)
-    await pubClient.set(key, socket.id, {
-      EX: 60 * 60, // 1 hour TTL
-    });
 
   } catch (error) {
     console.error("Single connection error:", error);

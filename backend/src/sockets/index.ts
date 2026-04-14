@@ -11,56 +11,51 @@ import { registerTypingEvents } from "./typing.socket";
 import { registerReactionEvents } from "./reaction.socket";
 
 export const initializeSocket = async (io: Server) => {
-    await connectRedis();
-    io.adapter(createAdapter(pubClient, subClient));
+  await connectRedis();
+  io.adapter(createAdapter(pubClient, subClient));
 
-    io.use(socketAuthMiddleware);
+  io.use(socketAuthMiddleware);
 
-    io.on("connection", async (socket) => {
-        const userId = socket.data.userId;
+  io.on("connection", async (socket) => {
+    const userId = socket.data.userId;
 
-        console.log(`Client connected: ${socket.id} (User ID: ${userId})`);
+    await enforceSingleConnection(io, socket, userId);
 
-        await enforceSingleConnection(io, socket, userId);
-        registerLocationEvents(io, socket);
-        registerMessageEvents(io, socket);
-        registerPaginationEvents(io, socket);
-        registerTypingEvents(io, socket);
-        registerReactionEvents(io, socket);
+    registerLocationEvents(io, socket);
+    registerMessageEvents(io, socket);
+    registerPaginationEvents(io, socket);
+    registerTypingEvents(io, socket);
+    registerReactionEvents(io, socket);
 
-        socket.on("disconnect", async () => {
-            const roomId = socket.data.currentRoom;
+    socket.on("disconnect", async () => {
+      try {
+        const roomId = socket.data.currentRoom;
 
-            try {
-                // remove from room presence
-                if (roomId) {
-                const removed = await pubClient.sRem(
-                    `online_users:${roomId}`,
-                    userId
-                );
+        const storedSocketId = await pubClient.get(`user:${userId}`);
 
-                if (removed) {
-                    const count = await pubClient.sCard(
-                    `online_users:${roomId}`
-                    );
+        // 🔥 CRITICAL: only cleanup if this socket owns session
+        if (storedSocketId === socket.id) {
+          if (roomId) {
+            const removed = await pubClient.sRem(
+              `online_users:${roomId}`,
+              userId
+            );
 
-                    socket.to(roomId).emit("online_users_count", count);
-                }
-                }
+            if (removed === 1) {
+              const count = await pubClient.sCard(
+                `online_users:${roomId}`
+              );
 
-                // safe user cleanup
-                const storedSocketId = await pubClient.get(`user:${userId}`);
-
-                // prevent race condition
-                if (storedSocketId === socket.id) {
-                await pubClient.del(`user:${userId}`);
-                }
-
-            } catch (err) {
-                console.error("Disconnect cleanup error:", err);
+              socket.to(roomId).emit("online_users_count", count);
             }
+          }
 
-            console.log(`Client disconnected: ${socket.id}`);
-        });
+          await pubClient.del(`user:${userId}`);
+          await pubClient.del(`user_room:${userId}`);
+        }
+      } catch (err) {
+        console.error("Disconnect cleanup error:", err);
+      }
     });
+  });
 };

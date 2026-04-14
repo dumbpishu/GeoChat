@@ -7,94 +7,84 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
   socket.on(
     "update_location",
     async (data: { lat: number; long: number }) => {
-      console.log(`Received location update from ${socket.id}:`, data);
-
       try {
-        const { lat, long } = data;
+        const userId = socket.data.userId?.toString();
+        if (!userId) return;
 
-        const userIdRaw = socket.data.userId;
-        if (!userIdRaw) return;
+        const newRoom = getRoom(data.lat, data.long);
 
-        const userId = userIdRaw.toString();
+        // atomic get-set to update room and get previous value
+        const prevRoom = await pubClient.getSet(
+          `user_room:${userId}`,
+          newRoom
+        );
 
-        const newRoom = getRoom(lat, long);
-
-        // idempotent room join + presence update
-        const prevRoom = await pubClient.get(`user_room:${userId}`);
-
-        // same room rejoin (e.g. minor location change) - just update presence
+        // if user is already in the correct room, do nothing
         if (prevRoom === newRoom) {
-          await pubClient.sAdd(`online_users:${newRoom}`, userId);
-
-          const count = await pubClient.sCard(`online_users:${newRoom}`);
-          socket.emit("online_users_count", count);
-
           return;
         }
 
-        // leave previous room + update presence
+        // user left previous room
         if (prevRoom) {
           socket.leave(prevRoom);
 
-          try {
-            const removed = await pubClient.sRem(
-              `online_users:${prevRoom}`,
-              userId
+          const removed = await pubClient.sRem(
+            `online_users:${prevRoom}`,
+            userId
+          );
+
+          // only update if something changed
+          if (removed === 1) {
+            const prevCount = await pubClient.sCard(
+              `online_users:${prevRoom}`
             );
 
-            if (removed) {
-              const count = await pubClient.sCard(
-                `online_users:${prevRoom}`
-              );
-
-              io.to(prevRoom).emit("online_users_count", count);
-            }
-          } catch (err) {
-            console.error("Redis remove error:", err);
+            io.to(prevRoom).emit("online_users_count", prevCount);
           }
         }
 
-        // join new room + update presence
+        // join new room
         socket.join(newRoom);
+        socket.data.currentRoom = newRoom;
 
-        try {
-          await pubClient.sAdd(`online_users:${newRoom}`, userId);
+        const added = await pubClient.sAdd(
+          `online_users:${newRoom}`,
+          userId
+        );
 
-          // single room per user (update REDIS)
-          await pubClient.set(`user_room:${userId}`, newRoom, {
-            EX: 60 * 60, // 1 hour TTL
-          });
+        const count = await pubClient.sCard(
+          `online_users:${newRoom}`
+        );
 
-          const count = await pubClient.sCard(
-            `online_users:${newRoom}`
-          );
+        // always send to self
+        socket.emit("online_users_count", count);
 
-          socket.emit("online_users_count", count);
+        // only notify others if state changed
+        if (added === 1) {
           socket.to(newRoom).emit("online_users_count", count);
-
-        } catch (err) {
-          console.error("Redis add error:", err);
         }
 
-        // fetch messages cache first
+        // fetch recent messages for new room
+
         let messages: any[] = [];
 
-        try {
-          const redisMessages = await pubClient.lRange(
-            `recent_messages:${newRoom}`,
-            0,
-            49
-          );
+        const redisMessages = await pubClient.lRange(
+          `recent_messages:${newRoom}`,
+          0,
+          49
+        );
 
-          if (redisMessages.length > 0) {
-            messages = redisMessages.map((msg) => JSON.parse(msg));
-          }
-        } catch (err) {
-          console.error("Redis fetch error:", err);
-        }
-
-        // fallback to mongodb
-        if (messages.length === 0) {
+        if (redisMessages.length > 0) {
+          messages = redisMessages
+            .map((msg) => {
+              try {
+                return JSON.parse(msg);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean);
+        } else {
           const dbMessages = await Message.find({ roomId: newRoom })
             .sort({ createdAt: -1 })
             .limit(50)
@@ -102,34 +92,33 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
 
           messages = dbMessages;
 
-          // rebuild Redis cache for this room (if DB has messages)
           if (dbMessages.length > 0) {
-            try {
+            const lock = await pubClient.set(
+              `lock:messages:${newRoom}`,
+              "1",
+              { NX: true, EX: 5 }
+            );
+
+            if (lock) {
               const pipeline = pubClient.multi();
 
-              dbMessages
-                .slice() // avoid mutation
-                .reverse()
-                .forEach((msg) => {
-                  pipeline.rPush(
-                    `recent_messages:${newRoom}`,
-                    JSON.stringify(msg)
-                  );
-                });
+              dbMessages.forEach((msg) => {
+                pipeline.lPush(
+                  `recent_messages:${newRoom}`,
+                  JSON.stringify(msg)
+                );
+              });
 
               pipeline.lTrim(`recent_messages:${newRoom}`, 0, 49);
               pipeline.expire(`recent_messages:${newRoom}`, 3600);
 
               await pipeline.exec();
-            } catch (err) {
-              console.error("Redis rebuild error:", err);
             }
           }
         }
 
-        // send most recent 50 messages (newest last)
+        // UI → oldest → newest
         socket.emit("recent_messages", messages.reverse());
-
       } catch (error) {
         console.error("Error updating location:", error);
         socket.emit("error", "Failed to update location");

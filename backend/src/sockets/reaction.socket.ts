@@ -10,89 +10,111 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
     "toggle_reaction",
     async (data: { messageId: string; emoji: string }) => {
       try {
-        const userIdRaw = socket.data.userId;
-        if (!userIdRaw) return;
+        const userId = socket.data.userId?.toString();
+        if (!userId) return;
 
-        const userId = userIdRaw.toString();
+        // fetch current room from socket data or Redis (handles edge cases)
+        const roomId =
+          socket.data.currentRoom ||
+          (await pubClient.get(`user_room:${userId}`));
 
-        // get current room from REDIS (source of truth)
-        const roomId = await pubClient.get(`user_room:${userId}`);
         if (!roomId) return;
 
         const { messageId, emoji } = data;
 
-        // validate messageId + emoji
+        // validate messageId
         if (!mongoose.Types.ObjectId.isValid(messageId)) return;
 
         if (!isValidEmoji(emoji)) {
           return socket.emit("error", "Invalid emoji");
         }
 
-        // fetch message from db
-        const message = await Message.findById(messageId);
+        const userObjectId = new mongoose.Types.ObjectId(userId);
 
-        if (!message) return;
-
-        // authorization check: ensure message belongs to the same room
-        if (message.roomId.toString() !== roomId) {
-          return socket.emit("error", "Unauthorized action");
-        }
-
-        // toggle reaction
-        const existingIndex = message.reactions.findIndex(
-          (r) => r.userId.toString() === userId
+        // one atomic operation to handle add/remove toggle + prevent duplicates
+        const pullResult = await Message.updateOne(
+          { _id: messageId, roomId },
+          {
+            $pull: {
+              reactions: { userId: userObjectId },
+            },
+          }
         );
 
-        let action: "added" | "removed" | "updated";
+        if (pullResult.matchedCount === 0) {
+          return socket.emit("error", "Message not found");
+        }
 
-        if (existingIndex !== -1) {
-          const existingReaction = message.reactions[existingIndex];
+        // additional check to determine if we removed an existing reaction or need to add new one
+        // this handles both toggle (same emoji) and change (different emoji) cases
 
-          if (existingReaction.emoji === emoji) {
-            // remove reaction
-            message.reactions.splice(existingIndex, 1);
+        // check if it was already removed OR we need to add new
+        let action: "added" | "removed" = "removed";
+
+        if (pullResult.modifiedCount === 1) {
+          // reaction existed → check if same emoji toggle
+          const existing = await Message.findOne({
+            _id: messageId,
+            roomId,
+            "reactions.userId": userObjectId,
+          });
+
+          if (!existing) {
+            // removed case
             action = "removed";
-          } else {
-            // update reaction
-            message.reactions[existingIndex].emoji = emoji;
-            action = "updated";
+
+            // BUT if user wants to change emoji, we add new one
+            await Message.updateOne(
+              { _id: messageId, roomId },
+              {
+                $push: {
+                  reactions: {
+                    userId: userObjectId,
+                    emoji,
+                  },
+                },
+              }
+            );
+
+            action = "added"; // treat as update
           }
         } else {
-          // add new reaction
-          message.reactions.push({
-            userId,
-            emoji,
-          });
+          // no previous reaction → add new
+          await Message.updateOne(
+            { _id: messageId, roomId },
+            {
+              $push: {
+                reactions: {
+                  userId: userObjectId,
+                  emoji,
+                },
+              },
+            }
+          );
+
           action = "added";
         }
 
-        await message.save();
-
-        // populate reactions for response
-        const populatedMessage = await Message.findById(messageId)
+        // fetch updated reactions to emit (optimized with lean + select)
+        const updatedMessage = await Message.findById(messageId)
           .select("reactions")
-          .populate({
-            path: "reactions.userId",
-            select: "name username avatar",
-          })
+          .populate("reactions.userId", "name username avatar")
           .lean();
 
-        if (!populatedMessage) return;
+        if (!updatedMessage) return;
 
         const formattedReactions = formatMessage({
-          ...message.toObject(),
-          reactions: populatedMessage.reactions,
+          ...updatedMessage,
         }).reactions;
 
-        // update Redis cache (if message is cached) - best effort, no critical failure if it fails
+        // cache invalidation (optional, can be optimized with more granular updates)
         try {
-          // soft expire cache to force refresh on next fetch
-          await pubClient.expire(`recent_messages:${roomId}`, 10);
-        } catch (error) {
-          console.error("Redis cache update error:", error);
+          await pubClient.del(`recent_messages:${roomId}`);
+        } catch (err) {
+          console.error("Redis cache delete error:", err);
         }
 
-        // emit updated reactions to room
+        // exit early if no users in room to avoid unnecessary emit
         io.to(roomId).emit("reaction_updated", {
           messageId,
           reactions: formattedReactions,

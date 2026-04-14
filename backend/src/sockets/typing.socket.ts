@@ -1,56 +1,82 @@
 import { Server, Socket } from "socket.io";
 import { pubClient } from "../config/redis";
+import { User } from "../models/user.model"; // 👈 make sure you have this
 
 export const registerTypingEvents = (io: Server, socket: Socket) => {
 
   // typing start
   socket.on("typing_start", async () => {
     try {
-      const userIdRaw = socket.data.userId;
-      if (!userIdRaw) return;
+      const userId = socket.data.userId?.toString();
+      if (!userId) return;
 
-      const userId = userIdRaw.toString();
+      const roomId =
+        socket.data.currentRoom ||
+        (await pubClient.get(`user_room:${userId}`));
 
-      // get room from REDIS (source of truth)
-      const roomId = await pubClient.get(`user_room:${userId}`);
       if (!roomId) return;
 
       const key = `typing_users:${roomId}`;
 
-      // add user to typing set
-      await pubClient.sAdd(key, userId);
+      const added = await pubClient.sAdd(key, userId);
 
-      // auto remove after 5 seconds to prevent stale typing status (e.g. if user disconnects without sending stop)
-      await pubClient.expire(key, 5);
+      // set TTL only once
+      const ttl = await pubClient.ttl(key);
+      if (ttl < 0) {
+        await pubClient.expire(key, 5);
+      }
 
-      // get all typing users
-      const usersTyping = await pubClient.sMembers(key);
+      // only emit update if this user was not already in the set (prevents duplicates and unnecessary emits)
+      if (added === 1) {
+        const typingUsers = await pubClient.sMembers(key);
 
-      io.to(roomId).emit("typing_users_update", usersTyping);
+        // 🔥 fetch user info
+        const users = await User.find({
+          _id: { $in: typingUsers },
+        })
+          .select("name username avatar")
+          .lean();
+
+        io.to(roomId).emit("typing_users_update", users);
+      }
 
     } catch (err) {
       console.error("typing_start error:", err);
     }
   });
 
-  // typing stops
+  // typing stop
   socket.on("typing_stop", async () => {
     try {
-      const userIdRaw = socket.data.userId;
-      if (!userIdRaw) return;
+      const userId = socket.data.userId?.toString();
+      if (!userId) return;
 
-      const userId = userIdRaw.toString();
+      const roomId =
+        socket.data.currentRoom ||
+        (await pubClient.get(`user_room:${userId}`));
 
-      const roomId = await pubClient.get(`user_room:${userId}`);
       if (!roomId) return;
 
       const key = `typing_users:${roomId}`;
 
-      await pubClient.sRem(key, userId);
+      const removed = await pubClient.sRem(key, userId);
 
-      const usersTyping = await pubClient.sMembers(key);
+      if (removed === 1) {
+        const typingUsers = await pubClient.sMembers(key);
 
-      io.to(roomId).emit("typing_users_update", usersTyping);
+        if (typingUsers.length === 0) {
+          io.to(roomId).emit("typing_users_update", []);
+          return;
+        }
+
+        const users = await User.find({
+          _id: { $in: typingUsers },
+        })
+          .select("name username avatar")
+          .lean();
+
+        io.to(roomId).emit("typing_users_update", users);
+      }
 
     } catch (err) {
       console.error("typing_stop error:", err);

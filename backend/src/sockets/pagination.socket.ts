@@ -9,26 +9,27 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
     "fetch_older_messages",
     async (data: { cursor?: string; limit?: number }) => {
       try {
-        const userIdRaw = socket.data.userId;
-        if (!userIdRaw) {
+        const userId = socket.data.userId?.toString();
+        if (!userId) {
           return socket.emit("error", "Unauthorized");
         }
 
-        const userId = userIdRaw.toString();
+        // fetch current room from socket data or Redis (handles edge cases)
+        const roomId =
+          socket.data.currentRoom ||
+          (await pubClient.get(`user_room:${userId}`));
 
-        // get current room from REDIS (source of truth)
-        const roomId = await pubClient.get(`user_room:${userId}`);
         if (!roomId) {
           return socket.emit("error", "User not in any room");
         }
 
-        // validate limit
+        // validate and sanitize limit
         let limit = Number(data.limit) || 20;
 
-        if (isNaN(limit) || limit <= 0) limit = 20;
+        if (!Number.isFinite(limit) || limit <= 0) limit = 20;
         if (limit > 50) limit = 50;
 
-        // build query
+        // validate cursor (if provided)
         const query: any = { roomId };
 
         let cursorObjectId: mongoose.Types.ObjectId | null = null;
@@ -42,7 +43,7 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
           query._id = { $lt: cursorObjectId };
         }
 
-        // fetch messages from db
+        // fetch messages from DB
         const messages = await Message.find(query)
           .select({
             roomId: 1,
@@ -55,29 +56,28 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
             updatedAt: 1,
           })
           .populate("reactions.userId", "name username avatar")
-          .sort({ _id: -1 }) // newest first
-          .limit(limit + 1) // fetch extra for hasMore
+          .sort({ _id: -1 }) // newest → oldest
+          .limit(limit + 1)
           .lean();
 
-        // check if there's more messages for pagination
+        // check if there are more messages to load
         const hasMore = messages.length > limit;
 
         if (hasMore) {
-          messages.pop(); // remove extra
+          messages.pop();
         }
 
-        // oldest → newest (UI friendly)
+        // oldest → newest (for UI)
         const formattedMessages = messages
           .reverse()
           .map((msg) => formatMessage(msg));
 
-        // next cursor = oldest message ID
         const nextCursor =
           formattedMessages.length > 0
             ? formattedMessages[0]._id
             : null;
 
-        // send messages + pagination info
+        // emit older messages to client
         socket.emit("older_messages", {
           messages: formattedMessages,
           hasMore,

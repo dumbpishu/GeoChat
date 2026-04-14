@@ -33,7 +33,7 @@ export const initializeSocket = async (io: Server) => {
 
         const storedSocketId = await pubClient.get(`user:${userId}`);
 
-        // 🔥 CRITICAL: only cleanup if this socket owns session
+        // only cleanup if this socket is the active session (handles quick reconnects)
         if (storedSocketId === socket.id) {
           if (roomId) {
             const removed = await pubClient.sRem(
@@ -46,10 +46,13 @@ export const initializeSocket = async (io: Server) => {
                 `online_users:${roomId}`
               );
 
-              socket.to(roomId).emit("online_users_count", count);
+              socket
+                .to(roomId)
+                .emit("online_users_count", count);
             }
           }
 
+          // cleanup session
           await pubClient.del(`user:${userId}`);
           await pubClient.del(`user_room:${userId}`);
         }

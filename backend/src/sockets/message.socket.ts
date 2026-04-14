@@ -18,58 +18,53 @@ type SendMessagePayload = {
 export const registerMessageEvents = (io: Server, socket: Socket) => {
   socket.on("send_message", async (data: SendMessagePayload) => {
     try {
-      const userIdRaw = socket.data.userId;
-      if (!userIdRaw) return socket.emit("error", "Unauthorized");
+      const userId = socket.data.userId?.toString();
+      if (!userId) return socket.emit("error", "Unauthorized");
 
-      const userId = userIdRaw.toString();
-
-      // get current room from REDIS (source of truth)
-      const roomId = await pubClient.get(`user_room:${userId}`);
+      // fetch current room from socket data or Redis (handles edge cases)
+      const roomId =
+        socket.data.currentRoom ||
+        (await pubClient.get(`user_room:${userId}`));
 
       if (!roomId) {
         return socket.emit("error", "User not in any room");
       }
 
       // rate limit: max 5 messages per second
-      try {
-        const rateKey = `rate_limit:${userId}`;
-        const count = await pubClient.incr(rateKey);
+      const rateKey = `rate_limit:${userId}`;
+      const count = await pubClient.incr(rateKey);
 
-        if (count === 1) {
-          await pubClient.expire(rateKey, 1);
-        }
-
-        if (count > 5) {
-          return socket.emit("error", "Too many messages, slow down");
-        }
-      } catch (err) {
-        console.error("Rate limit error:", err);
+      if (count === 1) {
+        await pubClient.expire(rateKey, 1);
       }
 
-      // clean input
+      if (count > 5) {
+        return socket.emit("error", "Too many messages");
+      }
+
+      // input validation
       const text = data.text?.trim() || "";
       const media = Array.isArray(data.media) ? data.media : [];
-      const mentions = Array.isArray(data.mentions) ? data.mentions : [];
+      const mentions = Array.isArray(data.mentions)
+        ? data.mentions
+        : [];
 
       if (!text && media.length === 0) {
-        return socket.emit("error", "Message must contain text or media");
+        return socket.emit("error", "Empty message");
       }
 
       if (text.length > 1000) {
         return socket.emit("error", "Message too long");
       }
 
-      // valid media
-      const validMedia = media.filter((item) => {
-        return (
-          item?.url &&
-          typeof item.url === "string" &&
-          item.url.trim() !== "" &&
-          ["image", "video", "audio", "file"].includes(item.type)
-        );
-      });
+      const validMedia = media.filter(
+        (m) =>
+          m?.url &&
+          typeof m.url === "string" &&
+          m.url.trim() !== "" &&
+          ["image", "video", "audio", "file"].includes(m.type)
+      );
 
-      // valid mentions (must be valid ObjectId)
       const validMentions = [
         ...new Set(
           mentions.filter((id) =>
@@ -78,13 +73,13 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
-      // save to db
+      // create message in DB
       const messageDoc = await Message.create({
         roomId,
         senderId: userId,
         text: text || undefined,
-        media: validMedia.length > 0 ? validMedia : undefined,
-        mentions: validMentions.length > 0 ? validMentions : undefined,
+        media: validMedia.length ? validMedia : undefined,
+        mentions: validMentions.length ? validMentions : undefined,
       });
 
       const formattedMessage = formatMessage({
@@ -92,7 +87,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         reactions: [],
       });
 
-      // redis cache (recent 50 messages per room)
+      // cache recent messages in Redis (latest 50)
       try {
         const pipeline = pubClient.multi();
 
@@ -102,16 +97,21 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         );
 
         pipeline.lTrim(`recent_messages:${roomId}`, 0, 49);
-
-        // refresh TTL
         pipeline.expire(`recent_messages:${roomId}`, 3600);
 
         await pipeline.exec();
       } catch (err) {
         console.error("Redis cache error:", err);
+
+        // if cache fails, we can choose to ignore (messages will still be stored in DB)
+        try {
+          await pubClient.del(`recent_messages:${roomId}`);
+        } catch (delErr) {
+          console.error("Cache delete error:", delErr);
+        }
       }
 
-      // emit messages
+      // emit message to sender and others in room
       socket.emit("new_message", {
         ...formattedMessage,
         isSender: true,
@@ -122,7 +122,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         isSender: false,
       });
 
-      // mentions notifications
+      // emit mention notifications
       for (const mentionedUserId of validMentions) {
         try {
           const socketId = await pubClient.get(
@@ -136,36 +136,33 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
               senderId: userId,
               text: messageDoc.text,
             });
-          } else {
-            // TODO: store offline notifications
           }
         } catch (err) {
-          console.error("Mention notify error:", err);
+          console.error("Mention error:", err);
         }
       }
-
     } catch (error) {
       console.error("send_message error:", error);
       socket.emit("error", "Failed to send message");
     }
   });
 
-  // message seen
+  // message seen event
   socket.on("message_seen", async ({ messageId }) => {
     try {
-      const userIdRaw = socket.data.userId;
-      if (!userIdRaw || !messageId) return;
+      const userId = socket.data.userId?.toString();
+      if (!userId || !messageId) return;
 
-      const userId = userIdRaw.toString();
+      const roomId =
+        socket.data.currentRoom ||
+        (await pubClient.get(`user_room:${userId}`));
 
-      const roomId = await pubClient.get(`user_room:${userId}`);
       if (!roomId) return;
 
       socket.to(roomId).emit("message_seen", {
         messageId,
         seenBy: userId,
       });
-
     } catch (err) {
       console.error("message_seen error:", err);
     }

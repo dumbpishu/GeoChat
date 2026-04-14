@@ -21,7 +21,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
       const userId = socket.data.userId?.toString();
       if (!userId) return socket.emit("error", "Unauthorized");
 
-      // fetch current room from socket data or Redis (handles edge cases)
       const roomId =
         socket.data.currentRoom ||
         (await pubClient.get(`user_room:${userId}`));
@@ -30,7 +29,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "User not in any room");
       }
 
-      // rate limit: max 5 messages per second
+      // rate limit
       const rateKey = `rate_limit:${userId}`;
       const count = await pubClient.incr(rateKey);
 
@@ -42,7 +41,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Too many messages");
       }
 
-      // input validation
       const text = data.text?.trim() || "";
       const media = Array.isArray(data.media) ? data.media : [];
       const mentions = Array.isArray(data.mentions)
@@ -61,7 +59,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         (m) =>
           m?.url &&
           typeof m.url === "string" &&
-          m.url.trim() !== "" &&
           ["image", "video", "audio", "file"].includes(m.type)
       );
 
@@ -73,7 +70,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
-      // create message in DB
       const messageDoc = await Message.create({
         roomId,
         senderId: userId,
@@ -87,31 +83,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         reactions: [],
       });
 
-      // cache recent messages in Redis (latest 50)
-      try {
-        const pipeline = pubClient.multi();
-
-        pipeline.lPush(
-          `recent_messages:${roomId}`,
-          JSON.stringify(formattedMessage)
-        );
-
-        pipeline.lTrim(`recent_messages:${roomId}`, 0, 49);
-        pipeline.expire(`recent_messages:${roomId}`, 3600);
-
-        await pipeline.exec();
-      } catch (err) {
-        console.error("Redis cache error:", err);
-
-        // if cache fails, we can choose to ignore (messages will still be stored in DB)
-        try {
-          await pubClient.del(`recent_messages:${roomId}`);
-        } catch (delErr) {
-          console.error("Cache delete error:", delErr);
-        }
-      }
-
-      // emit message to sender and others in room
+      // ✅ ONLY EMIT (NO CACHE)
       socket.emit("new_message", {
         ...formattedMessage,
         isSender: true,
@@ -122,23 +94,19 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         isSender: false,
       });
 
-      // emit mention notifications
+      // mentions
       for (const mentionedUserId of validMentions) {
-        try {
-          const socketId = await pubClient.get(
-            `user:${mentionedUserId}`
-          );
+        const socketId = await pubClient.get(
+          `user:${mentionedUserId}`
+        );
 
-          if (socketId) {
-            io.to(socketId).emit("mention_notification", {
-              messageId: messageDoc._id,
-              roomId,
-              senderId: userId,
-              text: messageDoc.text,
-            });
-          }
-        } catch (err) {
-          console.error("Mention error:", err);
+        if (socketId) {
+          io.to(socketId).emit("mention_notification", {
+            messageId: messageDoc._id,
+            roomId,
+            senderId: userId,
+            text: messageDoc.text,
+          });
         }
       }
     } catch (error) {
@@ -147,7 +115,6 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
     }
   });
 
-  // message seen event
   socket.on("message_seen", async ({ messageId }) => {
     try {
       const userId = socket.data.userId?.toString();

@@ -107,12 +107,6 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
           ...updatedMessage,
         }).reactions;
 
-        // cache invalidation (optional, can be optimized with more granular updates)
-        try {
-          await pubClient.del(`recent_messages:${roomId}`);
-        } catch (err) {
-          console.error("Redis cache delete error:", err);
-        }
 
         // exit early if no users in room to avoid unnecessary emit
         io.to(roomId).emit("reaction_updated", {

@@ -59,4 +59,7 @@ export const messageSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+messageSchema.index({ roomId: 1, createdAt: -1 });
+messageSchema.index({ roomId: 1, _id: -1 });
+
 export const Message = mongoose.model("Message", messageSchema);

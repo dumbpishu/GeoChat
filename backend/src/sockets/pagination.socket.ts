@@ -14,7 +14,6 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
           return socket.emit("error", "Unauthorized");
         }
 
-        // fetch current room from socket data or Redis (handles edge cases)
         const roomId =
           socket.data.currentRoom ||
           (await pubClient.get(`user_room:${userId}`));
@@ -23,27 +22,22 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
           return socket.emit("error", "User not in any room");
         }
 
-        // validate and sanitize limit
         let limit = Number(data.limit) || 20;
-
         if (!Number.isFinite(limit) || limit <= 0) limit = 20;
         if (limit > 50) limit = 50;
 
-        // validate cursor (if provided)
         const query: any = { roomId };
-
-        let cursorObjectId: mongoose.Types.ObjectId | null = null;
 
         if (
           data.cursor &&
           typeof data.cursor === "string" &&
           mongoose.Types.ObjectId.isValid(data.cursor)
         ) {
-          cursorObjectId = new mongoose.Types.ObjectId(data.cursor);
-          query._id = { $lt: cursorObjectId };
+          query._id = {
+            $lt: new mongoose.Types.ObjectId(data.cursor),
+          };
         }
 
-        // fetch messages from DB
         const messages = await Message.find(query)
           .select({
             roomId: 1,
@@ -55,35 +49,36 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
             createdAt: 1,
             updatedAt: 1,
           })
+          .populate("senderId", "name username avatar")
+          .populate("mentions", "name username avatar")
           .populate("reactions.userId", "name username avatar")
-          .sort({ _id: -1 }) // newest → oldest
+          .sort({ _id: -1 })
           .limit(limit + 1)
           .lean();
 
-        // check if there are more messages to load
         const hasMore = messages.length > limit;
+        if (hasMore) messages.pop();
 
-        if (hasMore) {
-          messages.pop();
-        }
-
-        // oldest → newest (for UI)
-        const formattedMessages = messages
-          .reverse()
-          .map((msg) => formatMessage(msg));
+        const formattedMessages = messages.reverse().map((msg) => {
+          const formatted = formatMessage(msg);
+          const reactions = Array.isArray(formatted.reactions) ? formatted.reactions : [];
+          return {
+            ...formatted,
+            reactions: reactions.slice(0, 10),
+            reactionsCount: reactions.length,
+          };
+        });
 
         const nextCursor =
           formattedMessages.length > 0
             ? formattedMessages[0]._id
             : null;
 
-        // emit older messages to client
         socket.emit("older_messages", {
           messages: formattedMessages,
           hasMore,
           nextCursor,
         });
-
       } catch (error) {
         console.error("Pagination error:", error);
         socket.emit("error", "Failed to fetch older messages");

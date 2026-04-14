@@ -29,30 +29,9 @@ export const initializeSocket = async (io: Server) => {
 
     socket.on("disconnect", async () => {
       try {
-        const roomId = socket.data.currentRoom;
-
         const storedSocketId = await pubClient.get(`user:${userId}`);
 
-        // only cleanup if this socket is the active session (handles quick reconnects)
         if (storedSocketId === socket.id) {
-          if (roomId) {
-            const removed = await pubClient.sRem(
-              `online_users:${roomId}`,
-              userId
-            );
-
-            if (removed === 1) {
-              const count = await pubClient.sCard(
-                `online_users:${roomId}`
-              );
-
-              socket
-                .to(roomId)
-                .emit("online_users_count", count);
-            }
-          }
-
-          // cleanup session
           await pubClient.del(`user:${userId}`);
           await pubClient.del(`user_room:${userId}`);
         }

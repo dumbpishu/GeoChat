@@ -16,11 +16,14 @@ type SendMessagePayload = {
 };
 
 export const registerMessageEvents = (io: Server, socket: Socket) => {
+  
+  // 🔥 SEND MESSAGE
   socket.on("send_message", async (data: SendMessagePayload) => {
     try {
       const userId = socket.data.userId?.toString();
       if (!userId) return socket.emit("error", "Unauthorized");
 
+      // get current room (socket or Redis fallback)
       const roomId =
         socket.data.currentRoom ||
         (await pubClient.get(`user_room:${userId}`));
@@ -29,7 +32,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "User not in any room");
       }
 
-      // rate limit
+      // ⚡ rate limit (max 5 messages/sec)
       const rateKey = `rate_limit:${userId}`;
       const count = await pubClient.incr(rateKey);
 
@@ -41,11 +44,10 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Too many messages");
       }
 
+      // 🧹 sanitize input
       const text = data.text?.trim() || "";
       const media = Array.isArray(data.media) ? data.media : [];
-      const mentions = Array.isArray(data.mentions)
-        ? data.mentions
-        : [];
+      const mentions = Array.isArray(data.mentions) ? data.mentions : [];
 
       if (!text && media.length === 0) {
         return socket.emit("error", "Empty message");
@@ -55,6 +57,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Message too long");
       }
 
+      // ✅ validate media
       const validMedia = media.filter(
         (m) =>
           m?.url &&
@@ -62,6 +65,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
           ["image", "video", "audio", "file"].includes(m.type)
       );
 
+      // ✅ validate mentions
       const validMentions = [
         ...new Set(
           mentions.filter((id) =>
@@ -70,6 +74,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
+      // 💾 create message
       const messageDoc = await Message.create({
         roomId,
         senderId: userId,
@@ -78,27 +83,38 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         mentions: validMentions.length ? validMentions : undefined,
       });
 
+      // 🔥 populate sender + mentions (modern way)
+      const populatedMessage = await Message.findById(messageDoc._id)
+        .populate("senderId", "name username avatar")
+        .populate("mentions", "name username avatar")
+        .lean();
+
+      if (!populatedMessage) {
+        return socket.emit("error", "Failed to send message");
+      }
+
+      // 🎯 format message for frontend
       const formattedMessage = formatMessage({
-        ...messageDoc.toObject(),
+        ...populatedMessage,
         reactions: [],
+        reactionsCount: 0,
       });
 
-      // ✅ ONLY EMIT (NO CACHE)
+      // 📤 send to sender
       socket.emit("new_message", {
         ...formattedMessage,
         isSender: true,
       });
 
+      // 📤 send to others in room
       socket.to(roomId).emit("new_message", {
         ...formattedMessage,
         isSender: false,
       });
 
-      // mentions
+      // 🔔 notify mentioned users
       for (const mentionedUserId of validMentions) {
-        const socketId = await pubClient.get(
-          `user:${mentionedUserId}`
-        );
+        const socketId = await pubClient.get(`user:${mentionedUserId}`);
 
         if (socketId) {
           io.to(socketId).emit("mention_notification", {
@@ -109,12 +125,14 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
           });
         }
       }
+
     } catch (error) {
       console.error("send_message error:", error);
       socket.emit("error", "Failed to send message");
     }
   });
 
+  // 👀 MESSAGE SEEN EVENT
   socket.on("message_seen", async ({ messageId }) => {
     try {
       const userId = socket.data.userId?.toString();
@@ -126,10 +144,12 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
 
       if (!roomId) return;
 
+      // notify others in room
       socket.to(roomId).emit("message_seen", {
         messageId,
         seenBy: userId,
       });
+
     } catch (err) {
       console.error("message_seen error:", err);
     }

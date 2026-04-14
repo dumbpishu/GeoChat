@@ -23,44 +23,20 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
         // leave previous
         if (prevRoom) {
           socket.leave(prevRoom);
-
-          const removed = await pubClient.sRem(
-            `online_users:${prevRoom}`,
-            userId
-          );
-
-          if (removed === 1) {
-            const prevCount = await pubClient.sCard(
-              `online_users:${prevRoom}`
-            );
-            io.to(prevRoom).emit("online_users_count", prevCount);
-          }
         }
 
         // join new
         socket.join(newRoom);
         socket.data.currentRoom = newRoom;
 
-        const added = await pubClient.sAdd(
-          `online_users:${newRoom}`,
-          userId
-        );
-
-        const count = await pubClient.sCard(
-          `online_users:${newRoom}`
-        );
-
-        socket.emit("online_users_count", count);
-
-        if (added === 1) {
-          socket.to(newRoom).emit("online_users_count", count);
-        }
-
-        // 🔥 FETCH FROM DB ONLY
+        // 🔥 ONLY DB FETCH
         const messages = await Message.find({ roomId: newRoom })
-          .sort({ createdAt: -1 })
-          .limit(50)
-          .lean();
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .populate("senderId", "name username avatar")
+        .populate("mentions", "name username avatar")
+        .populate("reactions.userId", "name username avatar")
+        .lean();
 
         socket.emit("recent_messages", messages.reverse());
       } catch (error) {

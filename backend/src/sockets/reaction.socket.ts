@@ -13,7 +13,6 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
         const userId = socket.data.userId?.toString();
         if (!userId) return;
 
-        // fetch current room from socket data or Redis (handles edge cases)
         const roomId =
           socket.data.currentRoom ||
           (await pubClient.get(`user_room:${userId}`));
@@ -22,80 +21,47 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
 
         const { messageId, emoji } = data;
 
-        // validate messageId
         if (!mongoose.Types.ObjectId.isValid(messageId)) return;
 
         if (!isValidEmoji(emoji)) {
           return socket.emit("error", "Invalid emoji");
         }
 
-        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const message = await Message.findOne({
+          _id: messageId,
+          roomId,
+        });
 
-        // one atomic operation to handle add/remove toggle + prevent duplicates
-        const pullResult = await Message.updateOne(
-          { _id: messageId, roomId },
-          {
-            $pull: {
-              reactions: { userId: userObjectId },
-            },
-          }
-        );
-
-        if (pullResult.matchedCount === 0) {
+        if (!message) {
           return socket.emit("error", "Message not found");
         }
 
-        // additional check to determine if we removed an existing reaction or need to add new one
-        // this handles both toggle (same emoji) and change (different emoji) cases
+        const existingIndex = message.reactions.findIndex(
+          (r) => r.userId.toString() === userId
+        );
 
-        // check if it was already removed OR we need to add new
-        let action: "added" | "removed" = "removed";
+        let action: "added" | "removed";
 
-        if (pullResult.modifiedCount === 1) {
-          // reaction existed → check if same emoji toggle
-          const existing = await Message.findOne({
-            _id: messageId,
-            roomId,
-            "reactions.userId": userObjectId,
-          });
+        if (existingIndex !== -1) {
+          const existingReaction = message.reactions[existingIndex];
 
-          if (!existing) {
-            // removed case
+          if (existingReaction.emoji === emoji) {
+            message.reactions.splice(existingIndex, 1);
             action = "removed";
-
-            // BUT if user wants to change emoji, we add new one
-            await Message.updateOne(
-              { _id: messageId, roomId },
-              {
-                $push: {
-                  reactions: {
-                    userId: userObjectId,
-                    emoji,
-                  },
-                },
-              }
-            );
-
-            action = "added"; // treat as update
+          } else {
+            message.reactions[existingIndex].emoji = emoji;
+            action = "added";
           }
         } else {
-          // no previous reaction → add new
-          await Message.updateOne(
-            { _id: messageId, roomId },
-            {
-              $push: {
-                reactions: {
-                  userId: userObjectId,
-                  emoji,
-                },
-              },
-            }
-          );
-
+          message.reactions.push({
+            userId: new mongoose.Types.ObjectId(userId),
+            emoji,
+          });
           action = "added";
         }
 
-        // fetch updated reactions to emit (optimized with lean + select)
+        await message.save();
+
         const updatedMessage = await Message.findById(messageId)
           .select("reactions")
           .populate("reactions.userId", "name username avatar")
@@ -103,18 +69,16 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
 
         if (!updatedMessage) return;
 
-        const formattedReactions = formatMessage({
-          ...updatedMessage,
-        }).reactions;
+        const formatted = formatMessage(updatedMessage);
 
+        const limitedReactions = Array.isArray(formatted.reactions) ? formatted.reactions.slice(0, 10) : [];
 
-        // exit early if no users in room to avoid unnecessary emit
         io.to(roomId).emit("reaction_updated", {
           messageId,
-          reactions: formattedReactions,
+          reactions: limitedReactions,
+          reactionsCount: formatted.reactions.length,
           action,
         });
-
       } catch (err) {
         console.error("reaction error:", err);
         socket.emit("error", "Failed to update reaction");

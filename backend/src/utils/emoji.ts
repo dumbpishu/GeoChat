@@ -1,14 +1,35 @@
-export const ALLOWED_EMOJIS = [
-  "👍",
-  "❤️",
-  "😂",
-  "🔥",
-  "😮",
-  "😢",
-  "👏",
-  "🎉"
-];
+export const ALLOWED_EMOJIS = new Set([
+  // Basic reactions
+  "👍", "👎", "❤️", "🔥", "👏", "🎉", "✅", "❌",
+
+  // Emotions - Happy
+  "😂", "🤣", "😊", "😍", "🥰", "😘", "🤩", "😎", "🥳", "😁", "😄", "😅",
+
+  // Emotions - Negative
+  "😢", "😭", "😔", "😞", "😡", "😤", "😰", "😱", "🤯", "🥺",
+
+  // Expressions
+  "🤔", "🙄", "😴", "🤤", "😷", "🤒", "🤕",
+
+  // Gestures
+  "🙏", "👌", "💪", "👀", "👋", "🤝", "✌️", "🤞", "🤙", "👈", "👉", "👆", "👇",
+
+  // Hearts
+  "💕", "💖", "💗", "💓", "💞", "💘", "💝", "💟", "♥️", "💔",
+
+  // Objects & Symbols
+  "💯", "✨", "⚡", "🚀", "💥", "💫", "💦", "💨", "🎵", "🎶", "💬", "💭",
+
+  // Nature
+  "🌸", "🌹", "🌺", "🌻", "🌼", "🌟", "⭐", "🌙", "☀️", "🌈", "🔥",
+
+  // Food
+  "🍕", "🍔", "🍟", "🌮", "🍣", "🍩", "🍪", "🍰", "🧁", "☕",
+
+  // Misc popular
+  "👑", "💎", "🎁", "🎀", "🔗", "📸", "📱", "💻", "⌚", "🎮"
+]);
 
 export const isValidEmoji = (emoji: string) => {
-  return ALLOWED_EMOJIS.includes(emoji);
+  return ALLOWED_EMOJIS.has(emoji);
 };

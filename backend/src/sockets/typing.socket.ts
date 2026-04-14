@@ -1,10 +1,8 @@
 import { Server, Socket } from "socket.io";
 import { pubClient } from "../config/redis";
-import { User } from "../models/user.model"; // 👈 make sure you have this
 
 export const registerTypingEvents = (io: Server, socket: Socket) => {
-
-  // typing start
+  
   socket.on("typing_start", async () => {
     try {
       const userId = socket.data.userId?.toString();
@@ -20,24 +18,13 @@ export const registerTypingEvents = (io: Server, socket: Socket) => {
 
       const added = await pubClient.sAdd(key, userId);
 
-      // set TTL only once
       const ttl = await pubClient.ttl(key);
       if (ttl < 0) {
         await pubClient.expire(key, 5);
       }
 
-      // only emit update if this user was not already in the set (prevents duplicates and unnecessary emits)
       if (added === 1) {
-        const typingUsers = await pubClient.sMembers(key);
-
-        // 🔥 fetch user info
-        const users = await User.find({
-          _id: { $in: typingUsers },
-        })
-          .select("name username avatar")
-          .lean();
-
-        io.to(roomId).emit("typing_users_update", users);
+        io.to(roomId).emit("typing_status", { isTyping: true });
       }
 
     } catch (err) {
@@ -45,7 +32,6 @@ export const registerTypingEvents = (io: Server, socket: Socket) => {
     }
   });
 
-  // typing stop
   socket.on("typing_stop", async () => {
     try {
       const userId = socket.data.userId?.toString();
@@ -62,20 +48,11 @@ export const registerTypingEvents = (io: Server, socket: Socket) => {
       const removed = await pubClient.sRem(key, userId);
 
       if (removed === 1) {
-        const typingUsers = await pubClient.sMembers(key);
+        const count = await pubClient.sCard(key);
 
-        if (typingUsers.length === 0) {
-          io.to(roomId).emit("typing_users_update", []);
-          return;
+        if (count === 0) {
+          io.to(roomId).emit("typing_status", { isTyping: false });
         }
-
-        const users = await User.find({
-          _id: { $in: typingUsers },
-        })
-          .select("name username avatar")
-          .lean();
-
-        io.to(roomId).emit("typing_users_update", users);
       }
 
     } catch (err) {

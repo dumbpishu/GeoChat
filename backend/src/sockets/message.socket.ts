@@ -122,6 +122,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
             roomId,
             senderId: userId,
             text: messageDoc.text,
+            mentionsIds: validMentions,
           });
         }
       }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useChatStore } from "@/store/chat.store";
 import { MessageBubble } from "./MessageBubble";
 import { Loader2 } from "lucide-react";
@@ -11,33 +11,48 @@ type MessageListProps = {
 export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
   const { messages, loading, hasMore } = useChatStore();
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevMessagesLengthRef = useRef(0);
+  const prevCountRef = useRef(0);
+  const isAtBottomRef = useRef(true);
 
-  const scrollToBottom = () => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  };
+  const doScroll = useCallback(() => {
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'auto'
+    });
+  }, []);
 
   useEffect(() => {
-    const isNewMessage = messages.length > prevMessagesLengthRef.current;
-    prevMessagesLengthRef.current = messages.length;
+    const count = messages.length;
+    const isNew = count > prevCountRef.current && count > 0;
+    const shouldScroll = isAtBottomRef.current || isNew;
     
-    if (isNewMessage) {
-      scrollToBottom();
+    if (shouldScroll) {
+      setTimeout(doScroll, 10);
+      setTimeout(doScroll, 50);
+      setTimeout(doScroll, 100);
+      setTimeout(doScroll, 200);
     }
-  }, [messages]);
+    
+    prevCountRef.current = count;
+  }, [messages, doScroll]);
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(scrollToBottom, 100);
+      setTimeout(doScroll, 50);
+      setTimeout(doScroll, 100);
+      setTimeout(doScroll, 300);
+      setTimeout(doScroll, 500);
     }
   }, []);
 
   const handleScroll = () => {
-    if (!containerRef.current) return;
-    const { scrollTop } = containerRef.current;
-    if (scrollTop < 50 && hasMore && !loading) {
+    const el = containerRef.current;
+    if (!el || !hasMore || loading) return;
+    
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    isAtBottomRef.current = atBottom;
+    
+    if (el.scrollTop < 50) {
       onLoadMore();
     }
   };

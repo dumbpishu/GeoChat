@@ -11,7 +11,6 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { UserMenu } from "@/components/UserMenu";
 import { Loader2 } from "lucide-react";
 
 export const Chat = () => {
@@ -109,15 +108,25 @@ export const Chat = () => {
   }, [user, location, fetchLocation]);
 
   useEffect(() => {
-    if (location && isConnected) emit("update_location", { lat: location.lat, long: location.long });
+    if (location && isConnected) {
+      console.log("📍 update_location sent (initial)", { lat: location.lat, long: location.long });
+      emit("update_location", { lat: location.lat, long: location.long });
+    }
   }, [location, isConnected, emit]);
 
   useEffect(() => {
     if (!location || !isConnected) return;
+    console.log("📍 Setting up location interval (60 seconds)");
     intervalRef.current = setInterval(() => {
+      console.log("📍 update_location sent (interval)", { lat: location.lat, long: location.long });
       emit("update_location", { lat: location.lat, long: location.long });
     }, 60000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { 
+      if (intervalRef.current) {
+        console.log("📍 Clearing location interval");
+        clearInterval(intervalRef.current); 
+      }
+    };
   }, [location, isConnected, emit]);
 
   if (authLoading || !user || locationLoading) {
@@ -133,8 +142,7 @@ export const Chat = () => {
       {/* Header - compact */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-50 px-4 py-2">
         <div className="flex items-center justify-between">
-          <ChatHeader user={user} isConnected={isConnected} location={location} />
-          <UserMenu />
+          <ChatHeader user={user!} isConnected={isConnected} location={location} />
         </div>
       </header>
 

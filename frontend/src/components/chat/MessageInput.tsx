@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Send, Image, X, Loader2 } from "lucide-react";
+import { Send, Paperclip, X, Loader2 } from "lucide-react";
 import { useMentions } from "@/hooks/useMentions";
 import { uploadChatMediaApi } from "@/api/chat.api";
 
@@ -50,7 +50,7 @@ export const MessageInput = ({
   const [sending, setSending] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const mentionsDropdownRef = useRef<HTMLDivElement>(null);
   
   const { mentions, loading: mentionsLoading, searchUsers, clearMentions } = useMentions();
@@ -179,7 +179,7 @@ export const MessageInput = ({
   };
 
   return (
-    <div className="bg-white border-t border-slate-200 px-6 py-3">
+    <div className="bg-slate-50/50 px-4 py-4">
       {media.length > 0 && (
         <div className="flex gap-2 mb-3 overflow-x-auto">
           {media.map((m, idx) => (
@@ -198,35 +198,34 @@ export const MessageInput = ({
         </div>
       )}
       
-      <div className="flex items-center gap-3 relative">
+      <div className="flex items-center gap-3">
         <button
           onClick={() => imageInputRef.current?.click()}
-          className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="p-2.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors h-12 w-12 flex items-center justify-center"
           type="button"
+          title="Attach file"
         >
-          <Image className="w-5 h-5" />
+          <Paperclip className="w-5 h-5" />
         </button>
         
         <input
           type="file"
           ref={imageInputRef}
-          accept="image/*"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
           multiple
           className="hidden"
           onChange={handleFileSelect}
         />
         
         <div className="flex-1 relative">
-          <textarea
-            ref={inputRef}
+          <input
+            ref={inputRef as any}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Message..."
             disabled={disabled}
-            rows={1}
-            className="w-full px-4 py-2.5 bg-slate-100 border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-base resize-none"
-            style={{ minHeight: '42px', maxHeight: '120px' }}
+            className="w-full px-5 py-3 bg-white border border-slate-100 rounded-2xl focus:outline-none focus:border-sky-200 focus:ring-0 text-base shadow-sm h-12"
           />
           
           {showMentions && (
@@ -276,9 +275,9 @@ export const MessageInput = ({
           onClick={handleSend}
           disabled={disabled || !canSend || sending}
           className={cn(
-            "p-3 rounded-full transition-all",
+            "p-2.5 rounded-full transition-all shrink-0 h-12 w-12 flex items-center justify-center",
             canSend && !disabled && !sending
-              ? "bg-sky-500 text-white hover:bg-sky-600"
+              ? "bg-sky-500 text-white hover:bg-sky-600 shadow-md shadow-sky-500/20"
               : "bg-slate-100 text-slate-300",
             (disabled || sending) && "opacity-50"
           )}

@@ -119,21 +119,17 @@ export const Chat = () => {
 
   useEffect(() => {
     if (location && isConnected) {
-      console.log("📍 update_location sent (initial)", { lat: location.lat, long: location.long });
       emit("update_location", { lat: location.lat, long: location.long });
     }
   }, [location, isConnected, emit]);
 
   useEffect(() => {
     if (!location || !isConnected) return;
-    console.log("📍 Setting up location interval (60 seconds)");
     intervalRef.current = setInterval(() => {
-      console.log("📍 update_location sent (interval)", { lat: location.lat, long: location.long });
       emit("update_location", { lat: location.lat, long: location.long });
     }, 60000);
     return () => { 
       if (intervalRef.current) {
-        console.log("📍 Clearing location interval");
         clearInterval(intervalRef.current); 
       }
     };
@@ -141,27 +137,35 @@ export const Chat = () => {
 
   if (authLoading || !user || locationLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-sky-50 via-white to-sky-50">
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50">
-      {/* Header - compact */}
-      <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-50 px-4 py-2">
-        <div className="flex items-center justify-between">
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-sky-100 shrink-0">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <ChatHeader user={user!} isConnected={isConnected} location={location} />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col w-full">
-        <MessageList onReact={handleReaction} onLoadMore={handleLoadMore} />
-        {typingUsers.length > 0 && <TypingIndicator users={typingUsers} />}
-        <MessageInput onSend={handleSendMessage} onTypingStart={handleTypingStart} onTypingStop={handleTypingStop} disabled={sendingMessage || !isConnected} />
+      {/* Messages - scrollable */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+          <MessageList onReact={handleReaction} onLoadMore={handleLoadMore} />
+        </div>
       </main>
+
+      {/* Input - fixed at bottom */}
+      <footer className="shrink-0">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          {typingUsers.length > 0 && <TypingIndicator users={typingUsers} />}
+          <MessageInput onSend={handleSendMessage} onTypingStart={handleTypingStart} onTypingStop={handleTypingStop} disabled={sendingMessage || !isConnected} />
+        </div>
+      </footer>
     </div>
   );
 };

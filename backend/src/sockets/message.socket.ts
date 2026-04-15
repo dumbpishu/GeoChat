@@ -112,18 +112,19 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         isSender: false,
       });
 
-      // 🔔 notify mentioned users
-      for (const mentionedUserId of validMentions) {
-        const socketId = await pubClient.get(`user:${mentionedUserId}`);
-
-        if (socketId) {
-          io.to(socketId).emit("mention_notification", {
-            messageId: messageDoc._id,
-            roomId,
-            senderId: userId,
-            text: messageDoc.text,
-            mentionsIds: validMentions,
-          });
+      // 🔔 notify mentioned users (socketId-based)
+      if (validMentions.length > 0) {
+        for (const mentionedUserId of validMentions) {
+          const socketId = await pubClient.get(`user:${mentionedUserId}`);
+          
+          if (socketId) {
+            io.to(socketId).emit("mention_notification", {
+              messageId: messageDoc._id,
+              roomId,
+              senderId: userId,
+              text: messageDoc.text,
+            });
+          }
         }
       }
 

@@ -75,6 +75,15 @@ export const Chat = () => {
     toast.error(error);
   }, []);
 
+  const handleMentionNotification = useCallback((data: { messageId: string; roomId: string; senderId: string; text?: string }) => {
+    // SocketId-based - only sent to mentioned user
+    const displayText = data.text ? `"${data.text.slice(0, 30)}${data.text.length > 30 ? '...' : ''}"` : "message";
+    toast(`You were mentioned in ${displayText}`, {
+      icon: "🔔",
+      duration: 4000,
+    });
+  }, []);
+
   const { emit, isConnected } = useSocket({
     onNewMessage: handleNewMessage,
     onRecentMessages: handleRecentMessages,
@@ -82,6 +91,7 @@ export const Chat = () => {
     onTypingStatus: handleTypingStatus,
     onReactionUpdated: handleReactionUpdated,
     onForceLogout: handleForceLogout,
+    onMentionNotification: handleMentionNotification,
     onError: handleError,
   });
 

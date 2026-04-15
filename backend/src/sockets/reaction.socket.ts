@@ -69,14 +69,22 @@ export const registerReactionEvents = (io: Server, socket: Socket) => {
 
         if (!updatedMessage) return;
 
-        const formatted = formatMessage(updatedMessage);
-
-        const limitedReactions = Array.isArray(formatted.reactions) ? formatted.reactions.slice(0, 10) : [];
+        const grouped: Record<string, { _id: string; name: string; username: string; avatar: string | null }[]> = {};
+        
+        for (const r of (updatedMessage.reactions || []) as any[]) {
+          const reactionEmoji = r.emoji;
+          if (!grouped[reactionEmoji]) grouped[reactionEmoji] = [];
+          grouped[reactionEmoji].push({
+            _id: r.userId._id.toString(),
+            name: (r.userId as any).name,
+            username: (r.userId as any).username,
+            avatar: (r.userId as any)?.avatar?.url || null,
+          });
+        }
 
         io.to(roomId).emit("reaction_updated", {
           messageId,
-          reactions: limitedReactions,
-          reactionsCount: formatted.reactions.length,
+          reactions: grouped,
           action,
         });
       } catch (err) {

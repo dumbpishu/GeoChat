@@ -5,18 +5,15 @@ type LocationState = {
   location: { lat: number; long: number; city?: string; country?: string } | null;
   loading: boolean;
   error: string | null;
-  isLocationAllowed: boolean;
 
   fetchLocation: () => Promise<void>;
   setLocation: (location: { lat: number; long: number }) => void;
-  setLocationAllowed: (allowed: boolean) => void;
 }
 
 export const useLocationStore = create<LocationState>((set) => ({
   location: null,
   loading: false,
   error: null,
-  isLocationAllowed: false,
 
   fetchLocation: async () => {
     set({ loading: true, error: null });
@@ -45,22 +42,18 @@ export const useLocationStore = create<LocationState>((set) => ({
       const browserLocation = await tryBrowserLocation();
 
       if (browserLocation) {
-        set({ location: browserLocation, loading: false, isLocationAllowed: true });
+        set({ location: browserLocation, loading: false });
         return;
       }
 
       const ipLocation = await getLocationByIpApi();
-      set({ location: ipLocation, loading: false, isLocationAllowed: true });
+      set({ location: ipLocation, loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
   },
 
   setLocation: (location) => {
-    set({ location, isLocationAllowed: true });
-  },
-
-  setLocationAllowed: (allowed) => {
-    set({ isLocationAllowed: allowed });
+    set({ location });
   },
 }));

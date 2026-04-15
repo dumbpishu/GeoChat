@@ -17,6 +17,7 @@ export const initializeSocket = async (io: Server) => {
   io.use(socketAuthMiddleware);
 
   io.on("connection", async (socket) => {
+    console.log(`User connected: ${socket.id}`);
     const userId = socket.data.userId;
 
     await enforceSingleConnection(io, socket, userId);

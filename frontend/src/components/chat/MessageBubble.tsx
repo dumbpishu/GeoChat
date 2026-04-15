@@ -1,0 +1,151 @@
+import { useState } from "react";
+import { useUserStore } from "@/store/user.store";
+import type { Message } from "@/types/chat";
+import { cn } from "@/lib/utils";
+import { CheckCheck, SmilePlus } from "lucide-react";
+import { EmojiPicker, ReactionBadge, ReactionUsersModal } from "./EmojiPicker";
+
+const formatTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const getInitials = (name: string) => {
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+};
+
+type MessageBubbleProps = {
+  message: Message;
+  onReact: (messageId: string, emoji: string) => void;
+};
+
+export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
+  const user = useUserStore((state) => state.user);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionUsers, setShowReactionUsers] = useState(false);
+  const [selectedReactionEmoji, setSelectedReactionEmoji] = useState("");
+  
+  const isOwn = message.senderId._id === user?.id;
+  const hasReactions = message.reactions && typeof message.reactions === 'object' && Object.keys(message.reactions).length > 0;
+
+  const handleReactionClick = (emoji: string) => {
+    setSelectedReactionEmoji(emoji);
+    setShowReactionUsers(true);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    onReact(message._id, emoji);
+    setShowEmojiPicker(false);
+  };
+
+  return (
+    <div className={cn("flex gap-2 px-6 py-0.5 group w-full", isOwn ? "justify-end" : "justify-start")}>
+      {/* Avatar */}
+      {!isOwn && (
+        message.senderId.avatar ? (
+          <img
+            src={message.senderId.avatar}
+            alt={message.senderId.name}
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0 mt-1"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-1">
+            {getInitials(message.senderId.name)}
+          </div>
+        )
+      )}
+      
+      <div className={cn("max-w-[55%] relative", isOwn ? "items-end" : "items-start")}>
+        {/* Username */}
+        {!isOwn && (
+          <p className="text-[11px] font-medium text-slate-500 mb-0.5 ml-1">
+            {message.senderId.username}
+          </p>
+        )}
+        
+        {/* Message bubble */}
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-2.5",
+            isOwn 
+              ? "bg-sky-500 text-white rounded-br-md" 
+              : "bg-white border border-slate-200 text-slate-800 rounded-bl-md"
+          )}
+        >
+          {message.text && (
+            <p className="text-base whitespace-pre-wrap leading-relaxed">{message.text}</p>
+          )}
+          
+          {message.media && message.media.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {message.media.map((m, idx) => (
+                <div key={idx} className="relative rounded-lg overflow-hidden">
+                  {m.type === "image" && (
+                    <img 
+                      src={m.url} 
+                      alt="attachment" 
+                      className="max-w-[180px] rounded-lg object-cover"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Time */}
+          <div className={cn("flex items-center justify-end gap-1 mt-1")}>
+            <span className="text-[11px] text-slate-500">
+              {formatTime(message.createdAt)}
+            </span>
+            {isOwn && message.isSender && (
+              <CheckCheck className="w-3 h-3 text-sky-300" />
+            )}
+          </div>
+        </div>
+        
+        {/* Reactions row */}
+        <div className={cn("flex items-center gap-1 mt-1", isOwn ? "justify-end" : "justify-start")}>
+          {/* Existing reactions - always visible if present */}
+          {hasReactions && message.reactions && (
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(message.reactions).map(([emoji, users]) => {
+                const userList = users as Array<{_id: string; name: string; username: string; avatar?: string}>;
+                return (
+                  <ReactionBadge
+                    key={emoji}
+                    emoji={emoji}
+                    users={userList}
+                    isOwn={isOwn}
+                    onClick={() => handleReactionClick(emoji)}
+                  />
+                );
+              })}
+            </div>
+          )}
+          
+          {/* Emoji button - shows on hover */}
+          <button
+            onClick={() => setShowEmojiPicker(true)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+          >
+            <SmilePlus className="w-4 h-4 text-slate-500" />
+          </button>
+          
+          {/* Emoji picker modal */}
+          {showEmojiPicker && (
+            <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
+          )}
+          
+          {/* Reaction users modal */}
+          {showReactionUsers && message.reactions && selectedReactionEmoji && message.reactions[selectedReactionEmoji] && (
+            <ReactionUsersModal
+              emoji={selectedReactionEmoji}
+              users={message.reactions[selectedReactionEmoji] as Array<{_id: string; name: string; username: string; avatar?: string}>}
+              onClose={() => setShowReactionUsers(false)}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

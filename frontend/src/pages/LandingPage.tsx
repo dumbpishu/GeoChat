@@ -3,6 +3,7 @@ import { useUserStore } from "@/store/user.store";
 import { MapPin, MessageCircle, Users, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/UserMenu";
+import { ChatLogo } from "@/components/ChatLogo";
 
 export const LandingPage = () => {
     const user = useUserStore((state) => state.user);
@@ -11,9 +12,7 @@ export const LandingPage = () => {
         <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50">
             <nav className="flex items-center justify-between px-6 md:px-8 py-4 max-w-7xl mx-auto">
                 <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/25">
-                        <MapPin className="w-5 h-5 text-white" />
-                    </div>
+                    <ChatLogo size="md" />
                     <span className="text-2xl font-bold text-slate-800">GeoChat</span>
                 </div>
                 <div className="flex items-center gap-3">

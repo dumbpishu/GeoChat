@@ -6,6 +6,7 @@ import { env } from "../config/env";
 
 export const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void) => {
     try {
+        console.log("Authenticating socket connection...");
         const cookieHeader = socket.handshake.headers.cookie;
         if (!cookieHeader) {
             return next(new Error("Authentication required"));

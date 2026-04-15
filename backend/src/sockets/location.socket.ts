@@ -2,6 +2,7 @@ import { Socket, Server } from "socket.io";
 import { getRoom } from "../utils/room";
 import { pubClient } from "../config/redis";
 import { Message } from "../models/message.model";
+import { formatMessage } from "../utils/formatMessage";
 
 export const registerLocationEvents = (io: Server, socket: Socket) => {
   socket.on(
@@ -38,7 +39,8 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
         .populate("reactions.userId", "name username avatar")
         .lean();
 
-        socket.emit("recent_messages", messages.reverse());
+        const formattedMessages = messages.map((msg) => formatMessage(msg));
+        socket.emit("recent_messages", formattedMessages.reverse());
       } catch (error) {
         console.error("Error updating location:", error);
         socket.emit("error", "Failed to update location");

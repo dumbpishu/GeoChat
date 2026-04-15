@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User } from "../models/user.model";
 import { ApiError } from "../utils/ApiError";
 import cloudinary from "../config/cloudinary";
@@ -72,17 +73,29 @@ export const deleteUserService = async (userId: string) => {
     await user.save();
 }
 
-export const searchMentionsUsersService = async (query: string) => {
+export const searchMentionsUsersService = async (query: string, currentUserId?: string) => {
     if (!query) {
         return [];
     }
 
-    const users = await User.find({
-        username: {
-            $regex: query,
-            $options: "i", // Case-insensitive search
-        }
-    }).select("_id name username avatar").limit(10);
+    const searchQuery = query.replace("@", "").trim();
+    if (!searchQuery) {
+        return [];
+    }
+
+    const filter: any = {
+        $or: [
+            { username: { $regex: searchQuery, $options: "i" } },
+            { name: { $regex: searchQuery, $options: "i" } }
+        ],
+        isDeleted: { $ne: true }
+    };
+
+    if (currentUserId && mongoose.Types.ObjectId.isValid(currentUserId)) {
+        filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
+    }
+
+    const users = await User.find(filter).select("_id name username avatar").limit(10);
 
     return users.map(user => ({
         id: user._id.toString(),

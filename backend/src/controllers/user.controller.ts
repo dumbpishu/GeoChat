@@ -35,12 +35,13 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
 
 export const searchMentionsUsers = asyncHandler(async (req: Request, res: Response) => {
     const { q } = req.query;
+    const currentUserId = req.user?.id;
 
     if (typeof q !== "string" || q.trim() === "") {
         throw new ApiError(400, "Query parameter is required and must be a non-empty string.");
     }
 
-    const users = await searchMentionsUsersService(q);
+    const users = await searchMentionsUsersService(q, currentUserId);
 
     res.status(200).json(new ApiResponse(200, "Users found.", users));
 });

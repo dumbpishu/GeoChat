@@ -59,15 +59,7 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
         const hasMore = messages.length > limit;
         if (hasMore) messages.pop();
 
-        const formattedMessages = messages.reverse().map((msg) => {
-          const formatted = formatMessage(msg);
-          const reactions = Array.isArray(formatted.reactions) ? formatted.reactions : [];
-          return {
-            ...formatted,
-            reactions: reactions.slice(0, 10),
-            reactionsCount: reactions.length,
-          };
-        });
+        const formattedMessages = messages.reverse().map((msg) => formatMessage(msg));
 
         const nextCursor =
           formattedMessages.length > 0

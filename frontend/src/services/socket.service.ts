@@ -37,13 +37,13 @@ class SocketService {
   private setupEventListeners() {
     if (!this.socket) return;
 
-    // connect
+    // ✅ CONNECT
     this.socket.on("connect", () => {
-      console.log("Socket connected:", this.socket?.id);
+      console.log("✅ Socket connected:", this.socket?.id);
 
-      // send location after connect if we have it
+      // 🔥 VERY IMPORTANT: send location AFTER connection
       if (this.currentLocation) {
-        console.log("Sending location after connect");
+        console.log("📍 Sending location after connect");
         this.updateLocation(
           this.currentLocation.lat,
           this.currentLocation.long
@@ -51,39 +51,39 @@ class SocketService {
       }
     });
 
-    // connect error
+    // ❌ CONNECT ERROR
     this.socket.on("connect_error", (err) => {
-      console.error("Connect error:", err.message);
+      console.error("❌ Connect error:", err.message);
     });
 
-    // disconnect
+    // 🔌 DISCONNECT
     this.socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
+      console.log("⚠️ Socket disconnected:", reason);
     });
 
-    // server error
+    // ⚠️ SERVER ERROR
     this.socket.on("error", (error: string) => {
-      console.error("Socket error:", error);
+      console.error("❌ Socket error:", error);
     });
 
-    // online users count
+    // 👥 ONLINE USERS
     this.socket.on("online_users_count", (count: number) => {
       useChatStore.getState().setOnlineUsersCount(count);
     });
 
-    // initial load of recent messages
+    // 💬 INITIAL MESSAGES
     this.socket.on("recent_messages", (messages: any[]) => {
-      console.log("Received recent messages:", messages.length);
+      console.log("📨 Received recent messages:", messages.length);
       useChatStore.getState().setMessages(messages);
     });
 
-    // new message
+    // 🆕 NEW MESSAGE
     this.socket.on("new_message", (message: any) => {
       console.log("New message received");
       useChatStore.getState().addMessage(message);
     });
 
-    // pagination of older messages
+    // ⬆️ PAGINATION
     this.socket.on(
       "older_messages",
       (data: {
@@ -100,7 +100,7 @@ class SocketService {
       }
     );
 
-    // typing indicators
+    // ⌨️ TYPING
     this.socket.on("user_typing", ({ userId }) => {
       useChatStore.getState().addTypingUser(userId);
     });
@@ -109,7 +109,7 @@ class SocketService {
       useChatStore.getState().removeTypingUser(userId);
     });
 
-    // reactions
+    // ❤️ REACTIONS
     this.socket.on(
       "reaction_updated",
       (data: {
@@ -121,14 +121,9 @@ class SocketService {
         useChatStore.getState().updateReaction(data);
       }
     );
-
-    // message seen
-    this.socket.on("message_seen", ({ messageId, seenBy }) => {
-      useChatStore.getState().markMessageSeen(messageId, seenBy);
-    });
   }
 
-  // update location (with debug)
+  // ✅ FIXED: store location + send only if connected
   updateLocation(lat: number, long: number) {
     this.currentLocation = { lat, long };
 
@@ -141,7 +136,7 @@ class SocketService {
     this.socket.emit("update_location", { lat, long });
   }
 
-  // send message (with debug)
+  // 💬 SEND MESSAGE (with debug)
   sendMessage(
     text: string,
     media?: { url: string; type: string }[],
@@ -152,7 +147,7 @@ class SocketService {
       return;
     }
 
-    console.log("Sending message:", text);
+    console.log("📤 Sending message:", text);
 
     this.socket.emit("send_message", {
       text,

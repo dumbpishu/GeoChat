@@ -21,7 +21,6 @@ type Message = {
   createdAt: string;
   updatedAt: string;
   isSender?: boolean;
-  seenBy?: string[];
 };
 
 type PaginationState = {
@@ -44,7 +43,6 @@ type ChatState = {
   removeTypingUser: (userId: string) => void;
   setPagination: (pagination: Partial<PaginationState>) => void;
   updateReaction: (data: { messageId: string; userId: string; emoji: string; action: string }) => void;
-  markMessageSeen: (messageId: string, seenBy: string) => void;
   clearChat: () => void;
 };
 
@@ -58,27 +56,17 @@ export const useChatStore = create<ChatState>((set) => ({
     loading: false,
   },
 
-  setMessages: (messages) => {
-    const uniqueMessages = messages.filter(
-      (msg, index, self) => index === self.findIndex((m) => m._id === msg._id)
-    );
-    set({ messages: uniqueMessages });
-  },
+  setMessages: (messages) => set({ messages }),
 
   addMessage: (message) =>
-    set((state) => {
-      if (state.messages.some((m) => m._id === message._id)) {
-        return state;
-      }
-      return { messages: [...state.messages, message] };
-    }),
+    set((state) => ({
+      messages: [...state.messages, message],
+    })),
 
   addOlderMessages: (olderMessages) =>
-    set((state) => {
-      const existingIds = new Set(state.messages.map((m) => m._id));
-      const newMessages = olderMessages.filter((m) => !existingIds.has(m._id));
-      return { messages: [...newMessages, ...state.messages] };
-    }),
+    set((state) => ({
+      messages: [...olderMessages, ...state.messages],
+    })),
 
   setOnlineUsersCount: (count) => set({ onlineUsersCount: count }),
 
@@ -134,18 +122,6 @@ export const useChatStore = create<ChatState>((set) => ({
         }
 
         return msg;
-      }),
-    })),
-
-  markMessageSeen: (messageId, seenBy) =>
-    set((state) => ({
-      messages: state.messages.map((msg) => {
-        if (msg._id !== messageId) return msg;
-        if (msg.seenBy?.includes(seenBy)) return msg;
-        return {
-          ...msg,
-          seenBy: [...(msg.seenBy || []), seenBy],
-        };
       }),
     })),
 

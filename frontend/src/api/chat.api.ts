@@ -12,7 +12,7 @@ export const uploadChatMediaApi = async (files: File[]): Promise<UploadedMedia[]
   });
 
   try {
-    const response = await api.post("/api/chats/upload", formData, {
+    const response = await api.post("/api/chat/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return response.data?.data;

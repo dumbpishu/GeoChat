@@ -93,6 +93,9 @@ export const searchMentionsUsersService = async (query: string, currentUserId?: 
 
     if (currentUserId && mongoose.Types.ObjectId.isValid(currentUserId)) {
         filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
+        console.log(`[SEARCH] Excluding user: ${currentUserId}`);
+    } else {
+        console.log(`[SEARCH] Not excluding - invalid currentUserId`);
     }
 
     const users = await User.find(filter).select("_id name username avatar").limit(10);

@@ -153,8 +153,8 @@ export const Chat = () => {
       </header>
 
       {/* Messages - scrollable */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+      <main className="flex-1 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 h-full overflow-y-auto">
           <MessageList onReact={handleReaction} onLoadMore={handleLoadMore} />
         </div>
       </main>

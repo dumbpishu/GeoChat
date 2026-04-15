@@ -13,12 +13,13 @@ export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const isAtBottomRef = useRef(true);
+  const isFirstRender = useRef(true);
 
   const doScroll = useCallback(() => {
-    window.scrollTo({
-      top: document.body.scrollHeight,
-      behavior: 'auto'
-    });
+    const el = containerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, []);
 
   useEffect(() => {
@@ -26,24 +27,15 @@ export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
     const isNew = count > prevCountRef.current && count > 0;
     const shouldScroll = isAtBottomRef.current || isNew;
     
-    if (shouldScroll) {
+    if (shouldScroll || isFirstRender.current) {
+      isFirstRender.current = false;
       setTimeout(doScroll, 10);
       setTimeout(doScroll, 50);
       setTimeout(doScroll, 100);
-      setTimeout(doScroll, 200);
     }
     
     prevCountRef.current = count;
   }, [messages, doScroll]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(doScroll, 50);
-      setTimeout(doScroll, 100);
-      setTimeout(doScroll, 300);
-      setTimeout(doScroll, 500);
-    }
-  }, []);
 
   const handleScroll = () => {
     const el = containerRef.current;
@@ -74,12 +66,12 @@ export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className="flex-1 overflow-y-auto py-4"
-      onScroll={handleScroll}
-    >
-      <div className="flex flex-col">
+    <div className="flex flex-col h-full">
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-y-auto"
+        onScroll={handleScroll}
+      >
         {loading && hasMore && (
           <div className="flex justify-center py-4">
             <Loader2 className="w-5 h-5 text-sky-500 animate-spin" />

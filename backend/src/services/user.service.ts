@@ -91,9 +91,9 @@ export const searchMentionsUsersService = async (query: string, currentUserId?: 
         isDeleted: { $ne: true }
     };
 
-    // if (currentUserId && mongoose.Types.ObjectId.isValid(currentUserId)) {
-    //     filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
-    // }
+    if (currentUserId && mongoose.Types.ObjectId.isValid(currentUserId)) {
+        filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
+    }
 
     const users = await User.find(filter).select("_id name username avatar").limit(10);
 

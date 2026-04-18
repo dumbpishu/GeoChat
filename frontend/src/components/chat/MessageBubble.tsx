@@ -11,8 +11,8 @@ const formatTime = (dateStr: string) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const getInitials = (name: string, username: string) => {
-  const text = name || username || "";
+const getInitials = (username: string) => {
+  const text = username || "";
   return text.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
@@ -87,7 +87,7 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
           />
         ) : (
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-1">
-            {getInitials(message.senderId.name || "", message.senderId.username)}
+            {getInitials(message.senderId.username)}
           </div>
         )
       )}

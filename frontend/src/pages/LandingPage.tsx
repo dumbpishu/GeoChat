@@ -13,7 +13,6 @@ export const LandingPage = () => {
             <nav className="flex items-center justify-between px-6 md:px-8 py-4 max-w-7xl mx-auto">
                 <div className="flex items-center gap-2">
                     <ChatLogo size="md" />
-                    <span className="text-2xl font-bold text-slate-800">GeoChat</span>
                 </div>
                 <div className="flex items-center gap-3">
                     {user ? (

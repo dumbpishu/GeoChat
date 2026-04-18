@@ -26,10 +26,10 @@ export const ChatHeader = ({ user, isConnected, location }: ChatHeaderProps) => 
 
   return (
     <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-2">
+      <button onClick={() => navigate("/")} className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
         <ChatLogo size="sm" />
         <span className="text-base font-bold text-slate-800">GeoChat</span>
-      </div>
+      </button>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />

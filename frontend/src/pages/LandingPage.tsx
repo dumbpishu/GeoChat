@@ -9,8 +9,8 @@ export const LandingPage = () => {
     const user = useUserStore((state) => state.user);
 
     return (
-        <div className="min-h-screen bg-white">
-            <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-b border-slate-100 z-50">
+        <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white">
+            <nav className="fixed top-0 left-0 right-0 z-50">
                 <div className="flex items-center justify-between px-6 md:px-12 py-4 max-w-7xl mx-auto">
                     <div className="flex items-center gap-2">
                         <ChatLogo size="md" />

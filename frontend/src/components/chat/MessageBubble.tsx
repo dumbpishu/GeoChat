@@ -12,7 +12,7 @@ const formatTime = (dateStr: string) => {
 };
 
 const getInitials = (username: string) => {
-  const text = username || "";
+  const text = username || "User";
   return text.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 

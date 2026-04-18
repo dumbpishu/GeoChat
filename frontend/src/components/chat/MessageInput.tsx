@@ -77,7 +77,7 @@ export const MessageInput = ({
     }
   }, [searchUsers, clearMentions]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setText(value);
     checkForMention(value);

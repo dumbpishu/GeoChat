@@ -4,7 +4,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { resendOtpApi } from "@/api/auth.api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-import { Mail, ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 export const VerifyOtp = () => {
     const location = useLocation();
@@ -111,9 +111,6 @@ export const VerifyOtp = () => {
             </button>
 
             <div className="text-center mb-8">
-                <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-sky-500/25">
-                    <Mail className="w-6 h-6 text-white" />
-                </div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Verify Your Email</h2>
                 <p className="text-slate-500">We've sent a 6-digit code to</p>
                 <p className="text-slate-700 font-medium mt-1">{email}</p>

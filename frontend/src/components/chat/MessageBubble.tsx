@@ -11,8 +11,45 @@ const formatTime = (dateStr: string) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const getInitials = (name: string) => {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+const getInitials = (name: string, username: string) => {
+  const text = name || username || "";
+  return text.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+};
+
+const renderTextWithMentions = (text: string, mentions?: Message["mentions"]) => {
+  if (!text || !mentions || mentions.length === 0) {
+    return <span>{text}</span>;
+  }
+
+  const mentionUsernames = mentions.map((m) => m.username.toLowerCase());
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  const regex = /@(\w+)/g;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    const [fullMatch, username] = match;
+    const mentionIndex = mentionUsernames.indexOf(username.toLowerCase());
+
+    if (mentionIndex !== -1) {
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+      parts.push(
+        <span key={match.index} className="font-semibold">
+          {fullMatch}
+        </span>
+      );
+      lastIndex = match.index + fullMatch.length;
+    }
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return <span>{parts}</span>;
 };
 
 type MessageBubbleProps = {
@@ -49,7 +86,7 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
   return (
     <div className={cn("flex gap-2 px-6 py-0.5 group w-full", isOwn ? "justify-end" : "justify-start")}>
       {/* Avatar - shown only for others */}
-      {!isOwn && (message.senderId?.avatar || message.senderId?.name) && (
+      {!isOwn && (message.senderId?.avatar || message.senderId?.name || message.senderId?.username) && (
         message.senderId.avatar ? (
           <img
             src={message.senderId.avatar}
@@ -58,7 +95,7 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
           />
         ) : (
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-1">
-            {getInitials(message.senderId.name)}
+            {getInitials(message.senderId.name || "", message.senderId.username)}
           </div>
         )
       )}
@@ -81,7 +118,9 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
           )}
         >
           {message.text && (
-            <p className="text-base whitespace-pre-wrap leading-relaxed">{message.text}</p>
+            <p className="text-base whitespace-pre-wrap leading-relaxed">
+              {renderTextWithMentions(message.text, message.mentions)}
+            </p>
           )}
           
           {message.media && message.media.length > 0 && (

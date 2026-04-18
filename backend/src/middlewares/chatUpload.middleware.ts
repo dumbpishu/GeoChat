@@ -1,5 +1,7 @@
-import multer from "multer";
+import "express";
+import multer, { FileFilterCallback } from "multer";
 import { ApiError } from "../utils/ApiError";
+import { Request } from "express";
 
 const allowedTypes = [
   "image/jpeg",
@@ -15,7 +17,7 @@ const allowedTypes = [
 export const chatUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 20 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {

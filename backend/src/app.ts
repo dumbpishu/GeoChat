@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
-app.get("/api/health", (_, res) => {
+app.get("/api/health", (_: express.Request, res: express.Response) => {
     res.status(200).json({ success: true, message: "API is healthy" });
 })
 

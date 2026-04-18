@@ -1,6 +1,7 @@
 import { createClient } from "redis";
+import { env } from "./env";
 
-const redisUrl = "redis://127.0.0.1:6379";
+const redisUrl = env.REDIS_URI;
 
 export const pubClient = createClient({ url: redisUrl });
 export const subClient = pubClient.duplicate();

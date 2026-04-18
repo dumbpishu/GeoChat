@@ -12,6 +12,7 @@ type EnvConfig = {
     CLOUDINARY_CLOUD_NAME: string;
     CLOUDINARY_API_KEY: string;
     CLOUDINARY_API_SECRET: string;
+    REDIS_URI: string;
 }
 
 const genEnv = (key: string, required = true): string => {
@@ -37,4 +38,5 @@ export const env: EnvConfig = {
     CLOUDINARY_CLOUD_NAME: genEnv("CLOUDINARY_CLOUD_NAME"),
     CLOUDINARY_API_KEY: genEnv("CLOUDINARY_API_KEY"),
     CLOUDINARY_API_SECRET: genEnv("CLOUDINARY_API_SECRET"),
+    REDIS_URI: genEnv("REDIS_URI"),
 }

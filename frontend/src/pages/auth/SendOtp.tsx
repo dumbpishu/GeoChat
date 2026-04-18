@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ChatLogo } from "@/components/ChatLogo";
 import { Mail, ArrowRight, Sparkles } from "lucide-react";
 
 export const SendOtp = () => {
@@ -32,6 +33,7 @@ export const SendOtp = () => {
     return (
         <div className="w-full">
             <div className="text-center mb-8">
+                <ChatLogo size="lg" className="mx-auto mb-4" />
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to GeoChat</h2>
                 <p className="text-slate-500">Enter your email to get started</p>
             </div>

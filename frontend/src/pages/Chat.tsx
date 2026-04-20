@@ -11,7 +11,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export const Chat = () => {
   const navigate = useNavigate();
@@ -136,11 +136,7 @@ export const Chat = () => {
   }, [location, isConnected, emit]);
 
   if (authLoading || !user || locationLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-sky-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
-      </div>
-    );
+    return <Spinner className="bg-gradient-to-b from-sky-50 via-white to-sky-50" />;
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ChatLogo } from "@/components/ChatLogo";
 import { MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type ChatHeaderProps = {
   user: { id: string; name?: string; username: string; avatar?: string; email?: string };
@@ -32,17 +33,19 @@ export const ChatHeader = ({ user, isConnected, location }: ChatHeaderProps) => 
           )}
         </div>
         
-        <div>
-          {user.avatar ? (
-            <div className="w-8 h-8 rounded-full overflow-hidden">
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-medium">
-              {getInitials(user.name || user.username)}
-            </div>
-          )}
-        </div>
+        <Link to="/profile" className="cursor-pointer">
+          <div>
+            {user.avatar ? (
+              <div className="w-8 h-8 rounded-full overflow-hidden">
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-medium">
+                {getInitials(user.name || user.username)}
+              </div>
+            )}
+          </div>
+        </Link>
       </div>
     </div>
   );

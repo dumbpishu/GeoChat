@@ -48,7 +48,7 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
           await pubClient.set(`user_room:${userId}`, prevRoom);
           socketEmitRecentMessages(socket, prevRoom);
         } else {
-          socket.emit("recent_messages", []);
+          return;
         }
       } catch (error) {
         console.error("Error updating location:", error);

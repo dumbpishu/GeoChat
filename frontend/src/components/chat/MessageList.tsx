@@ -39,17 +39,19 @@ export const MessageList = ({ onReact, onReply, onLoadMore }: MessageListProps) 
     prevCountRef.current = count;
   }, [messages, doScroll]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const el = containerRef.current;
-    if (!el || !hasMore || loading) return;
-    
+    if (!el) return;
+
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
     isAtBottomRef.current = atBottom;
-    
-    if (el.scrollTop < 50) {
+
+    if (!hasMore || loading) return;
+
+    if (el.scrollTop < 100) {
       onLoadMore();
     }
-  };
+  }, [hasMore, loading, onLoadMore]);
 
   if (messages.length === 0 && !loading) {
     return (

@@ -81,6 +81,24 @@ export const Chat = () => {
     });
   }, []);
 
+  const handleUserJoinedRoom = useCallback((data: { user: { _id: string; name: string; username: string; avatar?: string }; roomId: string }) => {
+    if (data.user._id === user?.id) return;
+    toast(`${data.user.username} joined the chat`, {
+      icon: "👋",
+      duration: 3000,
+    });
+  }, [user?.id]);
+
+  const handleUserLeftRoom = useCallback((data: { userId: string; username?: string; roomId: string }) => {
+    if (data.userId === user?.id) return;
+    if (data.username) {
+      toast(`${data.username} left the chat`, {
+        icon: "👋",
+        duration: 3000,
+      });
+    }
+  }, [user?.id]);
+
   const { emit, isConnected } = useSocket({
     onNewMessage: handleNewMessage,
     onRecentMessages: handleRecentMessages,
@@ -88,6 +106,8 @@ export const Chat = () => {
     onTypingStatus: handleTypingStatus,
     onReactionUpdated: handleReactionUpdated,
     onMentionNotification: handleMentionNotification,
+    onUserJoinedRoom: handleUserJoinedRoom,
+    onUserLeftRoom: handleUserLeftRoom,
     onError: handleError,
   });
 
@@ -126,14 +146,17 @@ export const Chat = () => {
   useEffect(() => {
     if (!location || !isConnected) return;
     intervalRef.current = setInterval(() => {
-      emit("update_location", { lat: location.lat, long: location.long });
+      const loc = useLocationStore.getState().location;
+      if (loc) {
+        emit("update_location", { lat: loc.lat, long: loc.long });
+      }
     }, 60000);
     return () => { 
       if (intervalRef.current) {
         clearInterval(intervalRef.current); 
       }
     };
-  }, [location, isConnected, emit]);
+  }, [isConnected, emit]);
 
   if (authLoading || !user || locationLoading) {
     return <Spinner className="bg-gradient-to-b from-sky-50 via-white to-sky-50" />;

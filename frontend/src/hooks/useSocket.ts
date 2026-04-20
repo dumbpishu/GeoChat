@@ -28,6 +28,8 @@ type SocketCallbacks = {
     senderUsername?: string;
     text?: string;
   }) => void;
+  onUserJoinedRoom?: (data: { user: { _id: string; name: string; username: string; avatar?: string }; roomId: string }) => void;
+  onUserLeftRoom?: (data: { userId: string; username?: string; roomId: string }) => void;
   onError?: (error: string) => void;
 };
 
@@ -118,6 +120,8 @@ export const useSocket = (callbacks: SocketCallbacks) => {
     socket.on("typing_status", (data) => callbacksRef.current.onTypingStatus?.(data));
     socket.on("reaction_updated", (data) => callbacksRef.current.onReactionUpdated?.(data));
     socket.on("mention_notification", (data) => callbacksRef.current.onMentionNotification?.(data));
+    socket.on("user_joined_room", (data) => callbacksRef.current.onUserJoinedRoom?.(data));
+    socket.on("user_left_room", (data) => callbacksRef.current.onUserLeftRoom?.(data));
     socket.on("error", (err) => callbacksRef.current.onError?.(err));
   }, [user, location]);
 

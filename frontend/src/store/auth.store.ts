@@ -27,34 +27,22 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     sendOtp: async (email) => {
-        set({ loading: true });
-
-        try {
-            if (!email) {
-                throw new Error("Email is required");
-            }
-
-            await sendOtpApi(email);
-            sessionStorage.setItem("otpEmail", email);
-        } finally {
-            set({ loading: false });
+        if (!email) {
+            throw new Error("Email is required");
         }
+
+        await sendOtpApi(email);
+        sessionStorage.setItem("otpEmail", email);
     },
 
     verifyOtp: async (email, otp) => {
-        set({ loading: true });
-
-        try {
-            if (!email || !otp) {
-                throw new Error("Email and OTP are required");
-            }
-
-            const userData = await verifyOtpApi(email, otp);
-            useUserStore.getState().setUser(userData);
-            sessionStorage.removeItem("otpEmail");
-        } finally {
-            set({ loading: false });
+        if (!email || !otp) {
+            throw new Error("Email and OTP are required");
         }
+
+        const userData = await verifyOtpApi(email, otp);
+        useUserStore.getState().setUser(userData);
+        sessionStorage.removeItem("otpEmail");
     },
 
     logout: async () => {

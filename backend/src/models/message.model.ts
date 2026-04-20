@@ -54,7 +54,11 @@ export const messageSchema = new mongoose.Schema(
                     required: true
                 }
             }
-        ]
+        ],
+        replyTo: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Message"
+        }
     }, 
     { timestamps: true }
 );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useUserStore } from "@/store/user.store";
 import type { Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { SmilePlus, Check } from "lucide-react";
+import { SmilePlus, Check, Reply } from "lucide-react";
 import { EmojiPicker, ReactionBadge, ReactionUsersModal } from "./EmojiPicker";
 import { MediaModal } from "./MediaModal";
 
@@ -47,17 +47,20 @@ const renderTextWithMentions = (text: string) => {
 type MessageBubbleProps = {
   message: Message;
   onReact: (messageId: string, emoji: string) => void;
+  onReply: (message: Message) => void;
 };
 
-export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, onReact, onReply }: MessageBubbleProps) => {
   const user = useUserStore((state) => state.user);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showReactionUsers, setShowReactionUsers] = useState(false);
   const [selectedReactionEmoji, setSelectedReactionEmoji] = useState("");
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [mediaIndex, setMediaIndex] = useState(0);
-  
+  const [showOptions, setShowOptions] = useState(false);
+
   const isOwn = message.senderId._id === user?.id;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const hasReactions = message.reactions && typeof message.reactions === 'object' && Object.keys(message.reactions).length > 0;
 
   const openMediaModal = (idx: number) => {
@@ -100,57 +103,61 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
           </p>
         )}
         
-        {/* Message bubble - different styles for sender vs receiver */}
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5",
-            isOwn 
-              ? "bg-sky-500 text-white rounded-br-md" 
-              : "bg-white border border-slate-200 text-slate-800 rounded-bl-md"
-          )}
-        >
-          {message.text && (
-            <p className="text-base whitespace-pre-wrap leading-relaxed">
-              {renderTextWithMentions(message.text)}
-            </p>
-          )}
-          
-          {message.media && message.media.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {message.media.map((m, idx) => (
-                <div key={idx} className="relative rounded-lg overflow-hidden cursor-pointer" onClick={() => openMediaModal(idx)}>
-                  {m.type === "image" && (
-                    <img 
-                      src={m.url} 
-                      alt="attachment" 
-                      className="max-w-[180px] rounded-lg object-cover hover:opacity-90"
-                    />
-                  )}
-                  {m.type === "video" && (
-                    <video 
-                      src={m.url} 
-                      className="max-w-[180px] rounded-lg object-cover"
-                      muted
-                    />
-                  )}
-                  {(m.type === "audio" || m.type === "file") && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-white/20 rounded-lg w-[180px]">
-                      <span className="text-xs text-slate-500 capitalize">{m.type}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
+        {/* Reply + Message merged as one */}
+        <div className={cn(
+          "rounded-2xl overflow-hidden",
+          isOwn ? "bg-sky-500" : "bg-white border border-slate-200",
+          message.replyTo && (isOwn ? "rounded-tr-sm" : "rounded-tl-sm")
+        )}>
+          {/* Reply part - no extra padding */}
+          {message.replyTo && (
+            <div className={cn(
+              "px-4 py-1.5",
+              isOwn ? "bg-sky-600" : "bg-slate-100 border-b border-black/10"
+            )}>
+              <p className="text-base truncate" style={{ color: isOwn ? "#bfdbfe" : "#475569" }}>
+                {message.replyTo.text || "[Media]"}
+              </p>
             </div>
           )}
-
-          {/* Time */}
-          <div className={cn("flex items-center justify-end gap-1 mt-1")}>
-            <span className={cn("text-[11px]", isOwn ? "text-sky-100" : "text-slate-400")}>
-              {formatTime(message.createdAt)}
-            </span>
-            {isOwn && message.isSender && (
-              <Check className={cn("w-3.5 h-3.5", isOwn ? "text-sky-200" : "text-slate-400")} />
+          
+          {/* Your message part */}
+          <div className={cn("px-4 py-1.5", isOwn ? "text-white" : "text-slate-800")}>
+            {message.text && (
+              <p className="text-base whitespace-pre-wrap leading-relaxed">
+                {renderTextWithMentions(message.text)}
+              </p>
             )}
+            
+            {message.media && message.media.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {message.media.map((m, idx) => (
+                  <div key={idx} className="relative rounded-lg overflow-hidden cursor-pointer" onClick={() => openMediaModal(idx)}>
+                    {m.type === "image" && (
+                      <img src={m.url} alt="attachment" className="max-w-[180px] rounded-lg object-cover hover:opacity-90" />
+                    )}
+                    {m.type === "video" && (
+                      <video src={m.url} className="max-w-[180px] rounded-lg object-cover" muted />
+                    )}
+                    {(m.type === "audio" || m.type === "file") && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-white/20 rounded-lg w-[180px]">
+                        <span className="text-xs capitalize">{m.type}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Time */}
+            <div className={cn("flex items-center justify-end gap-1")}>
+              <span className={cn("text-[11px]", isOwn ? "text-sky-100" : "text-slate-400")}>
+                {formatTime(message.createdAt)}
+              </span>
+              {isOwn && message.isSender && (
+                <Check className={cn("w-3.5 h-3.5", isOwn ? "text-sky-200" : "text-slate-400")} />
+              )}
+            </div>
           </div>
         </div>
         
@@ -173,13 +180,58 @@ export const MessageBubble = ({ message, onReact }: MessageBubbleProps) => {
             </div>
           )}
           
-          <button
-            onClick={() => setShowEmojiPicker(true)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-slate-100"
-          >
-            <SmilePlus className="w-4 h-4 text-slate-500" />
-          </button>
+          <div className={cn("flex items-center gap-0.5", isMobile ? "" : "opacity-0 group-hover:opacity-100 transition-opacity")}>
+            {isMobile && (
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className="p-1.5 rounded-full hover:bg-slate-100 bg-white shadow-sm border border-slate-200"
+              >
+                <SmilePlus className="w-4 h-4 text-slate-600" />
+              </button>
+            )}
+            {!isMobile && (
+              <>
+                <button
+                  onClick={() => setShowEmojiPicker(true)}
+                  className="p-1.5 rounded-full hover:bg-slate-100"
+                  title="Add reaction"
+                >
+                  <SmilePlus className="w-4 h-4 text-slate-500" />
+                </button>
+                <button
+                  onClick={() => onReply(message)}
+                  className="p-1.5 rounded-full hover:bg-slate-100"
+                  title="Reply"
+                >
+                  <Reply className="w-4 h-4 text-slate-500" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
+        {isMobile && showOptions && (
+          <div className={cn(
+            "absolute top-full mt-1 flex gap-1 p-1 bg-white rounded-xl shadow-lg border border-slate-200 z-30",
+            isOwn ? "right-0" : "left-0"
+          )}>
+            <button
+              onClick={() => { setShowEmojiPicker(true); setShowOptions(false); }}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-slate-100 text-xs text-slate-600"
+            >
+              <SmilePlus className="w-4 h-4" />
+              <span>React</span>
+            </button>
+            <div className="w-px bg-slate-200" />
+            <button
+              onClick={() => { onReply(message); setShowOptions(false); }}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-slate-100 text-xs text-slate-600"
+            >
+              <Reply className="w-4 h-4" />
+              <span>Reply</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modals */}

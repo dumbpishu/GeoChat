@@ -51,6 +51,8 @@ export const registerPaginationEvents = (io: Server, socket: Socket) => {
           })
           .populate("senderId", "name username avatar")
           .populate("mentions", "name username avatar")
+          .populate("replyTo", "text senderId")
+          .populate("replyTo.senderId", "name username avatar")
           .populate("reactions.userId", "name username avatar")
           .sort({ _id: -1 })
           .limit(limit + 1)

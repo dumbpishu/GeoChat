@@ -13,6 +13,7 @@ type SendMessagePayload = {
   text?: string;
   media?: MediaType[];
   mentions?: string[];
+  replyTo?: string;
 };
 
 export const registerMessageEvents = (io: Server, socket: Socket) => {
@@ -74,6 +75,15 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
+      // validate replyTo
+      let validReplyTo: mongoose.Types.ObjectId | undefined;
+      if (data.replyTo && mongoose.Types.ObjectId.isValid(data.replyTo)) {
+        const replyMessage = await Message.findById(data.replyTo);
+        if (replyMessage && replyMessage.roomId === roomId) {
+          validReplyTo = replyMessage._id;
+        }
+      }
+
       // create message
       const messageDoc = await Message.create({
         roomId,
@@ -81,12 +91,15 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         text: text || undefined,
         media: validMedia.length ? validMedia : undefined,
         mentions: validMentions.length ? validMentions : undefined,
+        replyTo: validReplyTo,
       });
 
       // populate sender + mentions (modern way)
       const populatedMessage = await Message.findById(messageDoc._id)
         .populate("senderId", "name username avatar")
         .populate("mentions", "name username avatar")
+        .populate("replyTo", "text senderId")
+        .populate("replyTo.senderId", "name username avatar")
         .lean();
 
       if (!populatedMessage) {

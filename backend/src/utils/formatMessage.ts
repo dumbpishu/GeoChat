@@ -54,6 +54,16 @@ export const formatMessage = (msg: any) => {
     avatar: senderObj?.avatar?.url || senderObj?.avatar || undefined,
   };
 
+  const formattedReplyTo = msg.replyTo ? {
+    _id: msg.replyTo._id?.toString?.() || msg.replyTo._id || "",
+    text: msg.replyTo.text,
+    senderId: {
+      _id: msg.replyTo.senderId?._id?.toString?.() || msg.replyTo.senderId?._id || "",
+      name: msg.replyTo.senderId?.name || "",
+      username: msg.replyTo.senderId?.username || "",
+    },
+  } : undefined;
+
   return {
     _id: msg._id,
     roomId: msg.roomId,
@@ -62,6 +72,7 @@ export const formatMessage = (msg: any) => {
     media: msg.media,
     mentions: msg.mentions,
     reactions: formatReactions(reactions),
+    replyTo: formattedReplyTo,
     createdAt: msg.createdAt,
     updatedAt: msg.updatedAt,
   };

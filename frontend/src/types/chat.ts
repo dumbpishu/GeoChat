@@ -24,6 +24,15 @@ export interface Message {
     username: string;
     avatar?: string;
   }>>;
+  replyTo?: {
+    _id: string;
+    text?: string;
+    senderId: {
+      _id: string;
+      name: string;
+      username: string;
+    };
+  };
   createdAt: string;
   updatedAt?: string;
   isSender?: boolean;

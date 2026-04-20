@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/auth.store";
@@ -20,6 +20,7 @@ export const Chat = () => {
   const { logout, loading: authLoading } = useAuthStore();
   const user = useUserStore((state) => state.user);
   const { location, fetchLocation, loading: locationLoading } = useLocationStore();
+  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   
   const { 
     typingUsers, 
@@ -95,9 +96,13 @@ export const Chat = () => {
     onError: handleError,
   });
 
-  const handleSendMessage = useCallback((text: string, media?: Message["media"], mentions?: string[]) => {
-    emit("send_message", { text, media, mentions });
+  const handleSendMessage = useCallback((text: string, media?: Message["media"], mentions?: string[], replyTo?: string) => {
+    emit("send_message", { text, media, mentions, replyTo });
   }, [emit]);
+
+  const handleReply = useCallback((message: Message) => {
+    setReplyMessage(message);
+  }, []);
 
   const handleTypingStart = useCallback(() => emit("typing_start"), [emit]);
   const handleTypingStop = useCallback(() => emit("typing_stop"), [emit]);
@@ -151,7 +156,7 @@ export const Chat = () => {
       {/* Messages - scrollable */}
       <main className="flex-1 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 h-full overflow-y-auto">
-          <MessageList onReact={handleReaction} onLoadMore={handleLoadMore} />
+          <MessageList onReact={handleReaction} onReply={handleReply} onLoadMore={handleLoadMore} />
         </div>
       </main>
 
@@ -159,7 +164,7 @@ export const Chat = () => {
       <footer className="shrink-0">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           {typingUsers.length > 0 && <TypingIndicator users={typingUsers} />}
-          <MessageInput onSend={handleSendMessage} onTypingStart={handleTypingStart} onTypingStop={handleTypingStop} disabled={sendingMessage || !isConnected} />
+          <MessageInput onSend={handleSendMessage} onTypingStart={handleTypingStart} onTypingStop={handleTypingStop} replyMessage={replyMessage} setReplyMessage={setReplyMessage} disabled={sendingMessage || !isConnected} />
         </div>
       </footer>
     </div>

@@ -36,6 +36,8 @@ export const registerLocationEvents = (io: Server, socket: Socket) => {
         .limit(50)
         .populate("senderId", "name username avatar")
         .populate("mentions", "name username avatar")
+        .populate("replyTo", "text senderId")
+        .populate("replyTo.senderId", "name username avatar")
         .populate("reactions.userId", "name username avatar")
         .lean();
 

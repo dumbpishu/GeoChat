@@ -1,14 +1,16 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useChatStore } from "@/store/chat.store";
 import { MessageBubble } from "./MessageBubble";
+import type { Message } from "@/types/chat";
 import { Loader2 } from "lucide-react";
 
 type MessageListProps = {
   onReact: (messageId: string, emoji: string) => void;
+  onReply: (message: Message) => void;
   onLoadMore: () => void;
 };
 
-export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
+export const MessageList = ({ onReact, onReply, onLoadMore }: MessageListProps) => {
   const { messages, loading, hasMore } = useChatStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
@@ -78,13 +80,14 @@ export const MessageList = ({ onReact, onLoadMore }: MessageListProps) => {
           </div>
         )}
         
-        {messages.map((message) => (
-          <MessageBubble
-            key={message._id}
-            message={message}
-            onReact={onReact}
-          />
-        ))}
+{messages.map((message) => (
+            <MessageBubble
+              key={message._id}
+              message={message}
+              onReact={onReact}
+              onReply={onReply}
+            />
+          ))}
       </div>
     </div>
   );

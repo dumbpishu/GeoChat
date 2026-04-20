@@ -75,12 +75,12 @@ export const Chat = () => {
     toast.error(error);
   }, []);
 
-  const handleMentionNotification = useCallback((data: { messageId: string; roomId: string; senderId: string; text?: string }) => {
-    // SocketId-based - only sent to mentioned user
-    const displayText = data.text ? `"${data.text.slice(0, 30)}${data.text.length > 30 ? '...' : ''}"` : "message";
-    toast(`You were mentioned in ${displayText}`, {
-      icon: "🔔",
-      duration: 4000,
+  const handleMentionNotification = useCallback((data: { messageId: string; roomId: string; senderId: string; senderUsername?: string; text?: string }) => {
+    const truncatedText = data.text && data.text.length > 50 ? data.text.slice(0, 50) + "..." : data.text || "a message";
+    const senderUsername = data.senderUsername ? `${data.senderUsername} ` : "";
+    toast(`${senderUsername}mentioned you in "${truncatedText}"`, {
+      icon: "📢",
+      duration: 5000,
     });
   }, []);
 

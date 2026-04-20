@@ -7,7 +7,7 @@ import type { Message, TypingUser } from "@/types/chat";
 export type { Message, TypingUser };
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
-const DEBUG = true;
+const DEBUG = import.meta.env.DEBUG === "true";
 
 type SocketCallbacks = {
   onNewMessage?: (message: Message) => void;
@@ -24,6 +24,7 @@ type SocketCallbacks = {
     messageId: string;
     roomId: string;
     senderId: string;
+    senderUsername?: string;
     text?: string;
   }) => void;
   onForceLogout?: (message: string) => void;

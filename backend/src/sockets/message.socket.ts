@@ -17,7 +17,7 @@ type SendMessagePayload = {
 
 export const registerMessageEvents = (io: Server, socket: Socket) => {
   
-  // 🔥 SEND MESSAGE
+  // SEND MESSAGE
   socket.on("send_message", async (data: SendMessagePayload) => {
     try {
       const userId = socket.data.userId?.toString();
@@ -32,7 +32,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "User not in any room");
       }
 
-      // ⚡ rate limit (max 5 messages/sec)
+      // rate limit (max 5 messages/sec)
       const rateKey = `rate_limit:${userId}`;
       const count = await pubClient.incr(rateKey);
 
@@ -44,7 +44,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Too many messages");
       }
 
-      // 🧹 sanitize input
+      // sanitize input
       const text = data.text?.trim() || "";
       const media = Array.isArray(data.media) ? data.media : [];
       const mentions = Array.isArray(data.mentions) ? data.mentions : [];
@@ -57,7 +57,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Message too long");
       }
 
-      // ✅ validate media
+      // validate media
       const validMedia = media.filter(
         (m) =>
           m?.url &&
@@ -65,7 +65,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
           ["image", "video", "audio", "file"].includes(m.type)
       );
 
-      // ✅ validate mentions
+      // validate mentions
       const validMentions = [
         ...new Set(
           mentions.filter((id) =>
@@ -74,7 +74,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         ),
       ];
 
-      // 💾 create message
+      // create message
       const messageDoc = await Message.create({
         roomId,
         senderId: userId,
@@ -83,7 +83,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         mentions: validMentions.length ? validMentions : undefined,
       });
 
-      // 🔥 populate sender + mentions (modern way)
+      // populate sender + mentions (modern way)
       const populatedMessage = await Message.findById(messageDoc._id)
         .populate("senderId", "name username avatar")
         .populate("mentions", "name username avatar")
@@ -93,26 +93,26 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
         return socket.emit("error", "Failed to send message");
       }
 
-      // 🎯 format message for frontend
+      // format message for frontend
       const formattedMessage = formatMessage({
         ...populatedMessage,
         reactions: [],
         reactionsCount: 0,
       });
 
-      // 📤 send to sender
+      // send to sender
       socket.emit("new_message", {
         ...formattedMessage,
         isSender: true,
       });
 
-      // 📤 send to others in room
+      // send to others in room
       socket.to(roomId).emit("new_message", {
         ...formattedMessage,
         isSender: false,
       });
 
-      // 🔔 notify mentioned users (socketId-based)
+      // notify mentioned users (socketId-based)
       if (validMentions.length > 0) {
         for (const mentionedUserId of validMentions) {
           const socketId = await pubClient.get(`user:${mentionedUserId}`);
@@ -122,6 +122,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
               messageId: messageDoc._id,
               roomId,
               senderId: userId,
+              senderUsername: (populatedMessage.senderId as any).username,
               text: messageDoc.text,
             });
           }
@@ -134,7 +135,7 @@ export const registerMessageEvents = (io: Server, socket: Socket) => {
     }
   });
 
-  // 👀 MESSAGE SEEN EVENT
+  // MESSAGE SEEN EVENT
   socket.on("message_seen", async ({ messageId }) => {
     try {
       const userId = socket.data.userId?.toString();

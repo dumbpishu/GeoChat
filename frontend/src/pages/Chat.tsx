@@ -66,11 +66,7 @@ export const Chat = () => {
     });
   }, []);
 
-  const handleForceLogout = useCallback((message: string) => {
-    toast.error(message);
-    logout();
-    navigate("/");
-  }, [logout, navigate]);
+  // forceLogout feature removed - allow multiple device login
 
   const handleError = useCallback((error: string) => {
     toast.error(error);
@@ -91,7 +87,6 @@ export const Chat = () => {
     onOlderMessages: handleOlderMessages,
     onTypingStatus: handleTypingStatus,
     onReactionUpdated: handleReactionUpdated,
-    onForceLogout: handleForceLogout,
     onMentionNotification: handleMentionNotification,
     onError: handleError,
   });

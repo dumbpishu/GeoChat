@@ -2,7 +2,6 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { pubClient, subClient, connectRedis } from "../config/redis";
 import { socketAuthMiddleware } from "../middlewares/socket.middleware";
-import { enforceSingleConnection } from "./session.manager";
 
 import { registerLocationEvents } from "./location.socket";
 import { registerMessageEvents } from "./message.socket";
@@ -20,7 +19,7 @@ export const initializeSocket = async (io: Server) => {
     console.log(`User connected: ${socket.id}`);
     const userId = socket.data.userId;
 
-    await enforceSingleConnection(io, socket, userId);
+    // enforceSingleConnection removed - allow multiple device login
 
     registerLocationEvents(io, socket);
     registerMessageEvents(io, socket);

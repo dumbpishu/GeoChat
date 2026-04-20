@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse } from "../utils/ApiResponse";
 import { sendOtpService, verifyOtpService, resendOtpService } from "../services/auth.service";
+import { pubClient } from "../config/redis";
 import { ApiError } from "../utils/ApiError";
 
 export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -47,6 +48,13 @@ export const getCurrentUser = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?._id?.toString();
+
+    if (userId) {
+        await pubClient.del(`user:${userId}`);
+        await pubClient.del(`user_room:${userId}`);
+    }
+
     res.clearCookie("token", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

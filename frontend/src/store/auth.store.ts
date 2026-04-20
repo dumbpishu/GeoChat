@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getCurrentUserApi, sendOtpApi, verifyOtpApi, logoutApi } from "@/api/auth.api";
 import { useUserStore } from "./user.store";
+import { disconnectSocket } from "@/hooks/useSocket";
 
 type AuthState = {
     loading: boolean;
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         try {
             await logoutApi();
+            disconnectSocket();
             useUserStore.getState().clearUser();
         } finally {
             set({ loading: false });

@@ -8,6 +8,7 @@ export type { Message, TypingUser };
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 const DEBUG = import.meta.env.DEBUG === "true";
+console.log(DEBUG)
 
 type SocketCallbacks = {
   onNewMessage?: (message: Message) => void;
@@ -27,36 +28,53 @@ type SocketCallbacks = {
     senderUsername?: string;
     text?: string;
   }) => void;
-  onForceLogout?: (message: string) => void;
   onError?: (error: string) => void;
 };
 
 let globalSocket: Socket | null = null;
+let lastUserId: string | null = null;
+
+export const disconnectSocket = () => {
+  if (globalSocket) {
+    console.log("[Socket] Disconnecting socket...");
+    globalSocket.disconnect();
+    globalSocket = null;
+    lastUserId = null;
+    console.log("[Socket] Disconnected!");
+  }
+};
 
 export const useSocket = (callbacks: SocketCallbacks) => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const user = useUserStore((state) => state.user);
   const location = useLocationStore((state) => state.location);
-  const isInitialized = useRef(false);
   const callbacksRef = useRef(callbacks);
   callbacksRef.current = callbacks;
 
   const connect = useCallback(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
     if (!user) {
       if (DEBUG) console.log("[Socket] No user logged in");
       return;
     }
 
-    if (globalSocket?.connected) {
+    const userId = user?.id;
+    const userChanged = userId !== lastUserId;
+
+    if (globalSocket?.connected && !userChanged) {
       if (DEBUG) console.log("[Socket] Reusing existing connection");
       socketRef.current = globalSocket;
       setIsConnected(true);
       return;
     }
+
+    if (userChanged && globalSocket) {
+      if (DEBUG) console.log("[Socket] User changed, disconnecting old socket");
+      globalSocket.disconnect();
+      globalSocket = null;
+    }
+
+    lastUserId = userId;
 
     if (DEBUG) console.log("[Socket] Connecting to:", SOCKET_URL);
 
@@ -100,7 +118,6 @@ export const useSocket = (callbacks: SocketCallbacks) => {
     socket.on("typing_status", (data) => callbacksRef.current.onTypingStatus?.(data));
     socket.on("reaction_updated", (data) => callbacksRef.current.onReactionUpdated?.(data));
     socket.on("mention_notification", (data) => callbacksRef.current.onMentionNotification?.(data));
-    socket.on("force_logout", (msg) => callbacksRef.current.onForceLogout?.(msg));
     socket.on("error", (err) => callbacksRef.current.onError?.(err));
   }, [user, location]);
 
@@ -118,10 +135,6 @@ export const useSocket = (callbacks: SocketCallbacks) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit(event, data);
     }
-  }, []);
-
-  useEffect(() => {
-    return () => {};
   }, []);
 
   return { emit, isConnected };

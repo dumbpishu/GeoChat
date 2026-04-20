@@ -17,7 +17,7 @@ export const Chat = () => {
   const navigate = useNavigate();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  const { logout, loading: authLoading } = useAuthStore();
+  const { loading: authLoading } = useAuthStore();
   const user = useUserStore((state) => state.user);
   const { location, fetchLocation, loading: locationLoading } = useLocationStore();
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);

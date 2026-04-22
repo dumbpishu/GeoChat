@@ -10,7 +10,6 @@ type LocationData = {
 export const getLocationByIpApi = async (): Promise<LocationData> => {
   try {
     const response = await api.get("/api/locations/ip");
-    console.log("Location data received:", response.data);
     return response.data?.data;
   } catch (error: any) {
     console.error("Failed to get location:", error);

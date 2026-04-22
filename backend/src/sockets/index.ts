@@ -19,6 +19,8 @@ export const initializeSocket = async (io: Server) => {
     console.log(`User connected: ${socket.id}`);
     const userId = socket.data.userId;
 
+    await pubClient.set(`user:${userId}`, socket.id);
+
     // enforceSingleConnection removed - allow multiple device login
 
     registerLocationEvents(io, socket);

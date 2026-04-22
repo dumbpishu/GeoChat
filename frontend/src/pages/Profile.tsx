@@ -49,15 +49,17 @@ export const Profile = () => {
     };
 
     const handleUpdateProfile = async () => {
-        if (!name.trim() || !username.trim()) {
-            toast.error("Please fill in all fields");
+        if (!name.trim() && !username.trim()) {
+            toast.error("Please fill in at least one field");
             return;
         }
         setIsLoading(true);
         try {
-            await updateUser({ name: name.trim(), username: username.trim() });
+            await updateUser({ 
+                name: name.trim() || undefined, 
+                username: username.trim() || undefined 
+            });
             toast.success("Profile updated successfully");
-            navigate("/");
         } catch (error: any) {
             toast.error(error.message || "Failed to update profile");
         } finally {

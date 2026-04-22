@@ -78,6 +78,7 @@ export const Chat = () => {
     toast(`${senderUsername}mentioned you in "${truncatedText}"`, {
       icon: "📢",
       duration: 5000,
+      position: "top-center",
     });
   }, []);
 
@@ -86,6 +87,7 @@ export const Chat = () => {
     toast(`${data.user.username} joined the chat`, {
       icon: "👋",
       duration: 3000,
+      position: "top-center",
     });
   }, [user?.id]);
 
@@ -95,6 +97,7 @@ export const Chat = () => {
       toast(`${data.username} left the chat`, {
         icon: "👋",
         duration: 3000,
+        position: "top-center",
       });
     }
   }, [user?.id]);

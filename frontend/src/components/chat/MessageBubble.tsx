@@ -81,7 +81,7 @@ export const MessageBubble = ({ message, onReact, onReply }: MessageBubbleProps)
   return (
     <div className={cn("flex gap-2 px-6 py-0.5 group w-full", isOwn ? "justify-end" : "justify-start")}>
       {/* Avatar - shown only for others */}
-      {!isOwn && (message.senderId?.avatar || message.senderId?.name || message.senderId?.username) && (
+      {!isOwn && (
         message.senderId.avatar ? (
           <img
             src={message.senderId.avatar}

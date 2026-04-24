@@ -51,7 +51,7 @@ export const formatMessage = (msg: any) => {
     _id: senderObj?._id?.toString?.() || senderObj?._id || "",
     name: senderObj?.name || "",
     username: senderObj?.username || "",
-    avatar: senderObj?.avatar?.url || senderObj?.avatar || undefined,
+    avatar: senderObj?.avatar?.url || undefined,
   };
 
   const formattedReplyTo = msg.replyTo ? {
